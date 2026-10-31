@@ -175,7 +175,8 @@ async function route(request: Request, settings: AuthSettings, fetcher: Fetcher)
   if (pathname === "/auth/login" && method === "GET") {
     if (!settings.ready) return messagePage(503, "Login isn't set up yet.");
     // The state cookie has to land on the address Discord will send the player back to.
-    if (url.origin !== settings.publicOrigin) return redirect(`${settings.publicOrigin}/auth/login`);
+    // Host only: behind the tunnel this server sees http even when the public address is https.
+    if (url.host !== new URL(settings.publicOrigin).host) return redirect(`${settings.publicOrigin}/auth/login`);
     return login(settings);
   }
 

@@ -97,6 +97,11 @@ test("login opened on another address goes to PUBLIC_URL first", async () => {
   expect(response.headers.getSetCookie()).toEqual([]);
 });
 
+test("login behind the tunnel, which arrives as plain http, doesn't redirect to itself", async () => {
+  const response = await request(new Request("http://test.invalid/auth/login"));
+  expect(new URL(response.headers.get("location")!).origin).toBe("https://discord.com");
+});
+
 test.each([
   ["a different state", "/auth/callback?code=abc&state=wrong", "lj_login_state=right"],
   ["no state cookie", "/auth/callback?code=abc&state=right", undefined],
