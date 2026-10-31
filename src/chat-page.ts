@@ -1,6 +1,6 @@
 import type { Message } from "discord.js";
 import allLanguages from "./all-languages.json";
-import { handleAdminRequest } from "./admin";
+import { handleAdminRequest, isAdminRequest } from "./admin";
 import { handleAuthRequest } from "./auth";
 
 type ChatLine = { id: string; channel: string; author: string; text: string; time: number };
@@ -29,22 +29,17 @@ function sortedLines() {
   return [...lines.values()].sort((a, b) => a.time - b.time);
 }
 
-// Messages are shown with textContent, so nothing a person types can run as code on the page.
-const page = `<!doctype html>
-<html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Server Chats</title>
-<style>
+const styles = `<style>
   :root { color-scheme: light dark; --bg: #f6f6f4; --text: #1d1d1b; --muted: #6b6b66; --line: #ddddd8; --accent: #2f7d4f; }
   @media (prefers-color-scheme: dark) { :root { --bg: #1b1c1a; --text: #ecece8; --muted: #a0a09a; --line: #333431; --accent: #6cc48f; } }
   body { margin: 0 auto; max-width: 900px; padding: 16px; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, sans-serif; }
   h1 { font-size: 1.3rem; margin: 0 0 12px; }
   .line { padding: 8px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
   .meta { display: block; font-size: .85rem; color: var(--muted); }
+  #empty[hidden] { display: none; }
   .channel { color: var(--accent); font-weight: 600; }
   .author { font-weight: 600; color: var(--text); }
-  main { padding-bottom: 150px; }
+  main { padding-bottom: 230px; }
   .row + .row { margin-top: 8px; }
   #voiceChannel { flex: 1 1 200px; min-width: 0; }
   form { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--line); }
@@ -75,8 +70,16 @@ const page = `<!doctype html>
   .game li { padding: 2px 0; }
   .game .language { font-weight: 600; }
   .game .right { color: var(--accent); font-weight: 600; }
-</style>
-<h1>Server Chats</h1>
+</style>`;
+
+// The public page: anyone can see the languages and log in to see their own games.
+const homePage = `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Language Jungle</title>
+${styles}
+<h1>Language Jungle</h1>
 <div id="top">
 <div id="account">
   <span id="accountName"></span>
@@ -95,6 +98,157 @@ const page = `<!doctype html>
   <div id="gamesList" hidden></div>
 </details>
 </div>
+<script>
+  function span(className, text) {
+    const el = document.createElement("span");
+    el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  const languageBox = document.getElementById("languages");
+  const languageSearch = document.getElementById("languageSearch");
+  const languageStatus = document.getElementById("languageStatus");
+  const languageList = document.getElementById("languageList");
+  let languages = null;
+
+  function showLanguages() {
+    if (!languages) return;
+    const typed = languageSearch.value.trim();
+    const matches = languages.filter((l) => l.name.toLowerCase().includes(typed.toLowerCase()));
+    languageList.replaceChildren(...matches.map((l) => {
+      const item = document.createElement("li");
+      item.textContent = l.name;
+      return item;
+    }));
+    languageList.hidden = matches.length === 0;
+    languageStatus.textContent = matches.length
+      ? matches.length + " of " + languages.length
+      : "0 of " + languages.length + ". No languages match \\"" + typed + "\\".";
+  }
+
+  // Fetched the first time the section opens. If that fails, opening it again retries.
+  async function loadLanguages() {
+    languageStatus.textContent = "Loading...";
+    try {
+      const response = await fetch("/api/languages");
+      if (!response.ok) throw new Error();
+      languages = await response.json();
+      showLanguages();
+    } catch {
+      languageStatus.textContent = "Couldn't load the languages. Close this section and open it again to retry.";
+    }
+  }
+
+  languageBox.addEventListener("toggle", () => {
+    if (languageBox.open && !languages) loadLanguages();
+  });
+  languageSearch.addEventListener("input", showLanguages);
+
+  const accountName = document.getElementById("accountName");
+  const loginLink = document.getElementById("loginLink");
+  const logoutButton = document.getElementById("logoutButton");
+  const gamesBox = document.getElementById("myGames");
+  const gamesStatus = document.getElementById("gamesStatus");
+  const gamesList = document.getElementById("gamesList");
+  const statusNames = { finished: "Finished", stopped: "Stopped", failed: "Ended early" };
+  let loggedOutNote = "Loading...";
+
+  function showLoggedOut(loginAvailable) {
+    loggedOutNote = loginAvailable ? "Log in to see your games." : "Login isn't set up yet.";
+    accountName.textContent = loginAvailable ? "" : loggedOutNote;
+    loginLink.hidden = !loginAvailable;
+    logoutButton.hidden = true;
+    gamesStatus.textContent = loggedOutNote;
+    gamesList.hidden = true;
+    gamesList.replaceChildren();
+  }
+
+  async function loadAccount() {
+    try {
+      const response = await fetch("/api/me");
+      const body = await response.json();
+      if (response.status === 401) return showLoggedOut(body.loginAvailable);
+      if (!response.ok) throw new Error();
+      accountName.textContent = "Logged in as " + body.name;
+      loginLink.hidden = true;
+      logoutButton.hidden = false;
+      if (gamesBox.open) loadGames();
+    } catch {
+      accountName.textContent = "Couldn't check your login.";
+    }
+  }
+
+  function roundItem(round) {
+    const item = document.createElement("li");
+    const result = round.correct ? "Right" : round.guessed ? "Wrong" : "No guess";
+    item.append(span("language", "Round " + round.number + ": " + round.language), " · ", span(round.correct ? "right" : "", result));
+    for (const guess of round.guesses) {
+      item.append(span("meta", "You said: " + guess.text + " (" + (guess.correct ? "right" : "wrong") + ")"));
+    }
+    return item;
+  }
+
+  function gameCard(game) {
+    const card = document.createElement("div");
+    card.className = "game";
+    const rounds = document.createElement("ol");
+    rounds.append(...game.rounds.map(roundItem));
+    card.append(
+      span("meta", new Date(game.date).toLocaleString() + " · " + (statusNames[game.status] ?? game.status)),
+      game.correctRounds + " of " + game.rounds.length + " rounds right",
+      rounds,
+    );
+    return card;
+  }
+
+  // Fetched each time the section opens, so a game that just ended shows up.
+  async function loadGames() {
+    gamesStatus.textContent = "Loading...";
+    try {
+      const response = await fetch("/api/history");
+      if (response.status === 401) {
+        const body = await response.json();
+        return showLoggedOut(body.loginAvailable);
+      }
+      if (!response.ok) throw new Error();
+      const { games } = await response.json();
+      gamesList.replaceChildren(...games.map(gameCard));
+      gamesList.hidden = games.length === 0;
+      gamesStatus.textContent = games.length
+        ? games.length + (games.length === 1 ? " game" : " games")
+        : "No games yet. A game shows up here once it has ended.";
+    } catch {
+      gamesStatus.textContent = "Couldn't load your games. Close this section and open it again to retry.";
+    }
+  }
+
+  gamesBox.addEventListener("toggle", () => {
+    if (gamesBox.open && !logoutButton.hidden) loadGames();
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    logoutButton.disabled = true;
+    const response = await fetch("/auth/logout", { method: "POST" }).catch(() => null);
+    logoutButton.disabled = false;
+    if (response?.ok) showLoggedOut(true);
+    else accountName.textContent = "Couldn't log out. Please try again.";
+  });
+
+  loadAccount();
+</script>
+</html>`;
+
+// The admin's testing page: every chat the bot can read, sending as the bot, and voice controls.
+// Messages are shown with textContent, so nothing a person types can run as code on the page.
+const testingPage = `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing</title>
+${styles}
+<h1>Testing</h1>
+<p><a href="/dashboard">Back to the dashboard</a></p>
 <p id="empty" class="meta">Waiting for messages...</p>
 <main id="list"></main>
 <form id="form">
@@ -239,137 +393,6 @@ const page = `<!doctype html>
 
   refresh();
   setInterval(() => refresh().catch(() => {}), 2000);
-
-  const languageBox = document.getElementById("languages");
-  const languageSearch = document.getElementById("languageSearch");
-  const languageStatus = document.getElementById("languageStatus");
-  const languageList = document.getElementById("languageList");
-  let languages = null;
-
-  function showLanguages() {
-    if (!languages) return;
-    const typed = languageSearch.value.trim();
-    const matches = languages.filter((l) => l.name.toLowerCase().includes(typed.toLowerCase()));
-    languageList.replaceChildren(...matches.map((l) => {
-      const item = document.createElement("li");
-      item.textContent = l.name;
-      return item;
-    }));
-    languageList.hidden = matches.length === 0;
-    languageStatus.textContent = matches.length
-      ? matches.length + " of " + languages.length
-      : "0 of " + languages.length + ". No languages match \\"" + typed + "\\".";
-  }
-
-  // Fetched the first time the section opens. If that fails, opening it again retries.
-  async function loadLanguages() {
-    languageStatus.textContent = "Loading...";
-    try {
-      const response = await fetch("/api/languages");
-      if (!response.ok) throw new Error();
-      languages = await response.json();
-      showLanguages();
-    } catch {
-      languageStatus.textContent = "Couldn't load the languages. Close this section and open it again to retry.";
-    }
-  }
-
-  languageBox.addEventListener("toggle", () => {
-    if (languageBox.open && !languages) loadLanguages();
-  });
-  languageSearch.addEventListener("input", showLanguages);
-
-  const accountName = document.getElementById("accountName");
-  const loginLink = document.getElementById("loginLink");
-  const logoutButton = document.getElementById("logoutButton");
-  const gamesBox = document.getElementById("myGames");
-  const gamesStatus = document.getElementById("gamesStatus");
-  const gamesList = document.getElementById("gamesList");
-  const statusNames = { finished: "Finished", stopped: "Stopped", failed: "Ended early" };
-  let loggedOutNote = "Loading...";
-
-  function showLoggedOut(loginAvailable) {
-    loggedOutNote = loginAvailable ? "Log in to see your games." : "Login isn't set up yet.";
-    accountName.textContent = loginAvailable ? "" : loggedOutNote;
-    loginLink.hidden = !loginAvailable;
-    logoutButton.hidden = true;
-    gamesStatus.textContent = loggedOutNote;
-    gamesList.hidden = true;
-    gamesList.replaceChildren();
-  }
-
-  async function loadAccount() {
-    try {
-      const response = await fetch("/api/me");
-      const body = await response.json();
-      if (response.status === 401) return showLoggedOut(body.loginAvailable);
-      if (!response.ok) throw new Error();
-      accountName.textContent = "Logged in as " + body.name;
-      loginLink.hidden = true;
-      logoutButton.hidden = false;
-      if (gamesBox.open) loadGames();
-    } catch {
-      accountName.textContent = "Couldn't check your login.";
-    }
-  }
-
-  function roundItem(round) {
-    const item = document.createElement("li");
-    const result = round.correct ? "Right" : round.guessed ? "Wrong" : "No guess";
-    item.append(span("language", "Round " + round.number + ": " + round.language), " · ", span(round.correct ? "right" : "", result));
-    for (const guess of round.guesses) {
-      item.append(span("meta", "You said: " + guess.text + " (" + (guess.correct ? "right" : "wrong") + ")"));
-    }
-    return item;
-  }
-
-  function gameCard(game) {
-    const card = document.createElement("div");
-    card.className = "game";
-    const rounds = document.createElement("ol");
-    rounds.append(...game.rounds.map(roundItem));
-    card.append(
-      span("meta", new Date(game.date).toLocaleString() + " · " + (statusNames[game.status] ?? game.status)),
-      game.correctRounds + " of " + game.rounds.length + " rounds right",
-      rounds,
-    );
-    return card;
-  }
-
-  // Fetched each time the section opens, so a game that just ended shows up.
-  async function loadGames() {
-    gamesStatus.textContent = "Loading...";
-    try {
-      const response = await fetch("/api/history");
-      if (response.status === 401) {
-        const body = await response.json();
-        return showLoggedOut(body.loginAvailable);
-      }
-      if (!response.ok) throw new Error();
-      const { games } = await response.json();
-      gamesList.replaceChildren(...games.map(gameCard));
-      gamesList.hidden = games.length === 0;
-      gamesStatus.textContent = games.length
-        ? games.length + (games.length === 1 ? " game" : " games")
-        : "No games yet. A game shows up here once it has ended.";
-    } catch {
-      gamesStatus.textContent = "Couldn't load your games. Close this section and open it again to retry.";
-    }
-  }
-
-  gamesBox.addEventListener("toggle", () => {
-    if (gamesBox.open && !logoutButton.hidden) loadGames();
-  });
-
-  logoutButton.addEventListener("click", async () => {
-    logoutButton.disabled = true;
-    const response = await fetch("/auth/logout", { method: "POST" }).catch(() => null);
-    logoutButton.disabled = false;
-    if (response?.ok) showLoggedOut(true);
-    else accountName.textContent = "Couldn't log out. Please try again.";
-  });
-
-  loadAccount();
 </script>
 </html>`;
 
@@ -396,6 +419,16 @@ function isFromOurPage(request: Request) {
   }
 }
 
+const ADMIN_ONLY_PATHS = new Set([
+  "/api/voice",
+  "/api/voice/join",
+  "/api/voice/leave",
+  "/api/voice/play",
+  "/api/send",
+  "/api/channels",
+  "/api/messages",
+]);
+
 export function startChatPage(port: number, actions: ChatActions) {
   // The server itself only listens on this computer. A tunnel can publish it.
   const server = Bun.serve({
@@ -415,6 +448,18 @@ export function startChatPage(port: number, actions: ChatActions) {
 
       const authResponse = await handleAuthRequest(request);
       if (authResponse) return authResponse;
+
+      if (pathname === "/dashboard/testing" && request.method === "GET") {
+        if (!isAdminRequest(request)) return new Response(null, { status: 302, headers: { location: "/dashboard" } });
+        return new Response(testingPage, {
+          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+        });
+      }
+
+      // Reading the chats, posting as the bot and moving it in voice are for the admin only.
+      if (ADMIN_ONLY_PATHS.has(pathname) && !isAdminRequest(request)) {
+        return Response.json({ error: "Not logged in" }, { status: 401 });
+      }
 
       if (pathname === "/api/voice") {
         return Response.json({
@@ -478,7 +523,7 @@ export function startChatPage(port: number, actions: ChatActions) {
       if (pathname === "/api/languages" && request.method === "GET") return Response.json(allLanguages);
       if (pathname === "/api/channels") return Response.json(await actions.listChannels());
       if (pathname === "/api/messages") return Response.json(sortedLines());
-      if (pathname === "/") return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
+      if (pathname === "/") return new Response(homePage, { headers: { "content-type": "text/html; charset=utf-8" } });
       return new Response("Not found", { status: 404 });
     },
   });

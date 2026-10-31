@@ -74,6 +74,7 @@ export const loginPage = `${head("Dashboard login")}<h1>Dashboard login</h1>
 
 export const dashboardPage = `${head("Dashboard")}<div id="top">
   <h1>Dashboard</h1>
+  <p><a href="/dashboard/testing">Testing page</a></p>
   <button type="button" id="logout">Log out</button>
 </div>
 <p id="note">Changes apply from the next game. A game that's already running keeps the settings it started with.</p>

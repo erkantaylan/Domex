@@ -69,6 +69,10 @@ function isAdmin(request: Request, settings: AdminSettings) {
   return false;
 }
 
+export function isAdminRequest(request: Request) {
+  return isAdmin(request, readAdminSettings());
+}
+
 function adminCookie(value: string, maxAgeSeconds: number, secure: boolean) {
   return `${ADMIN_COOKIE}=${value}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Strict${secure ? "; Secure" : ""}`;
 }
