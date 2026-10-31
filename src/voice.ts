@@ -7,6 +7,7 @@ import {
   entersState,
   getVoiceConnection,
   joinVoiceChannel,
+  NoSubscriberBehavior,
   VoiceConnectionStatus,
 } from "@discordjs/voice";
 import type { Guild } from "discord.js";
@@ -63,21 +64,29 @@ export function leaveVoice(guild: Guild) {
 }
 
 // One player for the bot. It turns a clip into sound the voice channel can hear.
-const player = createAudioPlayer();
+// It keeps going with nobody connected, so a clip always reaches its end and a game can't get stuck.
+const player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Play } });
 player.on("error", (error) => console.error("Clip failed:", error.message));
-player.on(AudioPlayerStatus.Idle, () => console.log("Clip finished"));
 
-// Plays a random clip from assets/ in the channel the bot is in.
-export async function playRandomClip(guild: Guild) {
+// Plays one file in the channel the bot is in. Resolves when it has finished or been stopped.
+export async function playFile(guild: Guild, filePath: string) {
   const connection = getVoiceConnection(guild.id);
   if (connection?.state.status !== VoiceConnectionStatus.Ready) throw new Error("Not in a voice channel");
 
-  const clips = (await readdir("assets")).filter((name) => name.endsWith(".mp3"));
-  const clip = clips[Math.floor(Math.random() * clips.length)];
-  if (!clip) throw new Error("No clips in assets/");
-
   connection.subscribe(player);
-  player.play(createAudioResource(join("assets", clip)));
+  player.play(createAudioResource(filePath));
   await entersState(player, AudioPlayerStatus.Playing, 5_000);
-  console.log("Clip playing");
+  await new Promise<void>((resolve) => player.once(AudioPlayerStatus.Idle, () => resolve()));
+}
+
+export function stopAudio() {
+  player.stop();
+}
+
+// The page's test button: plays a random clip from assets/.
+export async function playRandomClip(guild: Guild) {
+  const files = (await readdir("assets", { recursive: true })).filter((name) => name.endsWith(".mp3"));
+  const clip = files[Math.floor(Math.random() * files.length)];
+  if (!clip) throw new Error("No clips in assets/");
+  void playFile(guild, join("assets", clip)).catch((error) => console.error("Clip failed:", error));
 }
