@@ -13,7 +13,7 @@ const head = (title: string) => `<!doctype html>
   #top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
   #top h1 { margin: 0; }
   .field { display: block; padding: 12px 0; border-top: 1px solid var(--line); }
-  .field > span { display: block; font-weight: 600; }
+  .field > span:first-child { display: block; font-weight: 600; }
   .hint { display: block; font-size: .85rem; color: var(--muted); }
   .problem { display: block; color: var(--error); }
   .problem:empty { display: none; }
