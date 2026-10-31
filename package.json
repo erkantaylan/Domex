@@ -1,0 +1,12 @@
+{
+  "name": "language-jungle",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "discord.js": "^14.28.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}
