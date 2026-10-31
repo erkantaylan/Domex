@@ -1,4 +1,5 @@
 import type { Message } from "discord.js";
+import allLanguages from "./all-languages.json";
 
 type ChatLine = { id: string; channel: string; author: string; text: string; time: number };
 
@@ -51,8 +52,22 @@ const page = `<!doctype html>
   input { flex: 1 1 200px; min-width: 0; }
   button { cursor: pointer; border-color: var(--accent); color: var(--accent); font-weight: 600; }
   #error { max-width: 900px; margin: 0 auto 6px; color: #c0392b; }
+  /* Stays at the top while scrolling, because the page jumps down to the newest message. */
+  #languages { position: sticky; top: 0; z-index: 1; margin-bottom: 12px; padding-bottom: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  #languages summary { padding: 4px 0; cursor: pointer; color: var(--accent); font-weight: 600; }
+  #languageSearch { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; }
+  #languageStatus { margin: 6px 0; font-size: .85rem; color: var(--muted); }
+  /* A short scrolling list, so the search box and the fixed form both stay in view. */
+  #languageList { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; max-height: 30vh; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; overflow-wrap: anywhere; list-style: none; }
+  #languageList[hidden] { display: none; }
 </style>
 <h1>Server Chats</h1>
+<details id="languages">
+  <summary>Languages</summary>
+  <input id="languageSearch" type="search" autocomplete="off" placeholder="Search languages" aria-label="Search languages">
+  <p id="languageStatus" role="status">Loading...</p>
+  <ul id="languageList"></ul>
+</details>
 <p id="empty" class="meta">Waiting for messages...</p>
 <main id="list"></main>
 <form id="form">
@@ -197,6 +212,45 @@ const page = `<!doctype html>
 
   refresh();
   setInterval(() => refresh().catch(() => {}), 2000);
+
+  const languageBox = document.getElementById("languages");
+  const languageSearch = document.getElementById("languageSearch");
+  const languageStatus = document.getElementById("languageStatus");
+  const languageList = document.getElementById("languageList");
+  let languages = null;
+
+  function showLanguages() {
+    if (!languages) return;
+    const typed = languageSearch.value.trim();
+    const matches = languages.filter((l) => l.name.toLowerCase().includes(typed.toLowerCase()));
+    languageList.replaceChildren(...matches.map((l) => {
+      const item = document.createElement("li");
+      item.textContent = l.name;
+      return item;
+    }));
+    languageList.hidden = matches.length === 0;
+    languageStatus.textContent = matches.length
+      ? matches.length + " of " + languages.length
+      : "0 of " + languages.length + ". No languages match \\"" + typed + "\\".";
+  }
+
+  // Fetched the first time the section opens. If that fails, opening it again retries.
+  async function loadLanguages() {
+    languageStatus.textContent = "Loading...";
+    try {
+      const response = await fetch("/api/languages");
+      if (!response.ok) throw new Error();
+      languages = await response.json();
+      showLanguages();
+    } catch {
+      languageStatus.textContent = "Couldn't load the languages. Close this section and open it again to retry.";
+    }
+  }
+
+  languageBox.addEventListener("toggle", () => {
+    if (languageBox.open && !languages) loadLanguages();
+  });
+  languageSearch.addEventListener("input", showLanguages);
 </script>
 </html>`;
 
@@ -294,6 +348,9 @@ export function startChatPage(port: number, actions: ChatActions) {
         }
       }
 
+      // Every language in the clip collection, on purpose not only the ones the game uses:
+      // the game keeps those hidden, so this list comes from the data file and not the database.
+      if (pathname === "/api/languages" && request.method === "GET") return Response.json(allLanguages);
       if (pathname === "/api/channels") return Response.json(await actions.listChannels());
       if (pathname === "/api/messages") return Response.json(sortedLines());
       if (pathname === "/") return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
