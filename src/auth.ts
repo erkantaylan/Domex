@@ -38,7 +38,7 @@ export function readAuthSettings(): AuthSettings {
   };
 }
 
-function readCookie(request: Request, name: string) {
+export function readCookie(request: Request, name: string) {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [key, value] = part.trim().split("=");
     if (key === name) return value || null;

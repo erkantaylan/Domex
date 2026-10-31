@@ -1,5 +1,6 @@
 import type { Message } from "discord.js";
 import allLanguages from "./all-languages.json";
+import { handleAdminRequest } from "./admin";
 import { handleAuthRequest } from "./auth";
 
 type ChatLine = { id: string; channel: string; author: string; text: string; time: number };
@@ -408,6 +409,9 @@ export function startChatPage(port: number, actions: ChatActions) {
       if (request.method === "POST" && !isFromOurPage(request)) {
         return new Response("Forbidden", { status: 403 });
       }
+
+      const adminResponse = await handleAdminRequest(request);
+      if (adminResponse) return adminResponse;
 
       const authResponse = await handleAuthRequest(request);
       if (authResponse) return authResponse;

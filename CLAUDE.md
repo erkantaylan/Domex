@@ -36,7 +36,7 @@ Lessons can split or merge as the class goes.
 
 - Audio stays as files on the server. The database records where each clip is and which language it belongs to.
 - Save every game, round and guess, so the dashboard can answer questions later.
-- Keep roles in the database, never as user IDs in the code.
+- Keep roles in the database, never as user IDs in the code. The dashboard admin is the one exception, as the teacher decided: a single username and password from environment settings.
 - Never add a command that runs code from chat.
 
 ## Audio
