@@ -27,6 +27,14 @@ const head = (title: string) => `<!doctype html>
   #summary { padding: 12px 0; border-top: 1px solid var(--line); }
   #status { margin: 8px 0 0; color: var(--accent); font-weight: 600; }
   #error { margin: 8px 0 0; color: var(--error); }
+  #logsSection { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  #clipCount { margin: 0 0 8px; font-weight: 600; }
+  #clipCount.none { color: var(--error); }
+  #logs { max-height: 50vh; overflow-y: auto; font: 13px/1.4 ui-monospace, monospace; }
+  .log { padding: 6px 0; border-top: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .log.bad { color: var(--error); }
+  .log time { display: block; color: var(--muted); }
 </style>
 `;
 
@@ -105,7 +113,40 @@ export const dashboardPage = `${head("Dashboard")}<div id="top">
   <p id="status" role="status" hidden></p>
   <p id="error" role="alert" hidden></p>
 </form>
+<section id="logsSection">
+  <h2>What happened</h2>
+  <p id="clipCount" role="status"></p>
+  <p class="hint">The bot's recent log, newest first. It starts again when the bot restarts.</p>
+  <div id="logs"></div>
+</section>
 <script>
+  const clipCount = document.getElementById("clipCount");
+  const logsBox = document.getElementById("logs");
+
+  async function loadLogs() {
+    const response = await fetch("/api/admin/logs").catch(() => null);
+    if (!response?.ok) {
+      clipCount.textContent = "Couldn't load the log.";
+      return;
+    }
+    const { logs, languages, clips } = await response.json();
+    clipCount.textContent = clips === 0
+      ? "No clips imported, so games can't start."
+      : clips + " clips in " + languages + " languages.";
+    clipCount.className = clips === 0 ? "none" : "";
+    logsBox.replaceChildren(...logs.reverse().map((entry) => {
+      const row = document.createElement("div");
+      row.className = entry.level === "error" ? "log bad" : "log";
+      const time = document.createElement("time");
+      time.textContent = new Date(entry.time).toLocaleString();
+      row.append(time, entry.text);
+      return row;
+    }));
+  }
+
+  loadLogs();
+  setInterval(loadLogs, 5000);
+
   const form = document.getElementById("form");
   const loading = document.getElementById("loading");
   const save = document.getElementById("save");

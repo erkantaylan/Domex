@@ -10,9 +10,12 @@ import {
   type ChatInputCommandInteraction,
 } from "discord.js";
 import { runMigrations } from "./db";
+import { captureLogs } from "./logs";
 import { closeLeftoverGames, handleGuess, isGameRunning, startGame, stopGame } from "./game";
 import { addMessage, startChatPage } from "./chat-page";
 import { currentVoiceChannelId, joinVoice, leaveVoice, listVoiceChannels, playFile, playRandomClip, stopAudio } from "./voice";
+
+captureLogs();
 
 const { DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID } = process.env;
 

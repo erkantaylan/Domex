@@ -1,6 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { count } from "drizzle-orm";
 import { readAuthSettings, readCookie } from "./auth";
 import { dashboardPage, lockedPage, loginPage } from "./dashboard-page";
+import { db } from "./db";
+import { clips, languages } from "./db/schema";
+import { recentLogs } from "./logs";
 import { checkSettings, loadSettings, saveSettings } from "./settings";
 
 // The dashboard's own login: one shared admin from the environment, separate from Discord login.
@@ -193,6 +197,14 @@ async function settingsApi(request: Request, settings: AdminSettings) {
   return json({ settings: checked.settings });
 }
 
+async function logsApi(request: Request, settings: AdminSettings) {
+  if (!isAdmin(request, settings)) return json({ error: "Not logged in" }, 401);
+  if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+  const [languageCount] = await db.select({ total: count() }).from(languages);
+  const [clipCount] = await db.select({ total: count() }).from(clips);
+  return json({ logs: recentLogs(), languages: languageCount?.total ?? 0, clips: clipCount?.total ?? 0 });
+}
+
 function route(request: Request, settings: AdminSettings) {
   const { pathname } = new URL(request.url);
   const { method } = request;
@@ -205,6 +217,7 @@ function route(request: Request, settings: AdminSettings) {
   if (pathname === "/dashboard/login" && method === "POST") return login(request, settings);
   if (pathname === "/dashboard/logout" && method === "POST") return logout(request, settings);
   if (pathname === "/api/admin/settings") return settingsApi(request, settings);
+  if (pathname === "/api/admin/logs") return logsApi(request, settings);
   return null;
 }
 

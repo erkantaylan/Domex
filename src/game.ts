@@ -98,6 +98,7 @@ export async function startGame(table: GameTable) {
 
     await table.join();
     // Runs in the background so /game start can answer straight away.
+    console.log(`Game ${game.id} started in channel ${table.channelId}`);
     void runGame(game, picked);
     return game.id;
   } catch (error) {
@@ -129,6 +130,7 @@ async function runGame(game: Game, picked: Awaited<ReturnType<typeof pickClips>>
     console.error("Game failed:", error);
     await table.say("Something went wrong, so the game has ended.").catch(() => {});
   } finally {
+    console.log(`Game ${game.id} ended: ${status}`);
     game.round = null;
     activeGames.delete(table.guildId);
     table.leave();

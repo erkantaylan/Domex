@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { startChatPage, type ChatActions } from "./chat-page";
+import { addLog, recentLogs } from "./logs";
 
 // The chat and voice controls are for the admin only, with Discord swapped out here.
 const calls: string[] = [];
@@ -67,6 +68,28 @@ test("logged out, nothing from the testing page is reachable", async () => {
 test("a Discord login cookie doesn't open the testing page", async () => {
   const cookie = "lj_session=not-an-admin; session=not-an-admin";
   expect((await fetch(base + "/api/messages", { headers: { cookie } })).status).toBe(401);
+});
+
+test("the log only reaches the admin, and secrets are removed from it", async () => {
+  expect((await fetch(base + "/api/admin/logs")).status).toBe(401);
+
+  const fakeToken = "abcdefghijklmnopqrstuvwxyz.abcdef.abcdefghijklmnopqrstuvwxyz1234567";
+  process.env.ADMIN_PASSWORD = "test-password";
+  addLog("error", ["Failed:", "test-password", fakeToken, "postgres://user:hunter22@db/x", new Error("kept message")]);
+  const text = recentLogs().at(-1)!.text;
+  expect(text).not.toContain("test-password");
+  expect(text).not.toContain(fakeToken);
+  expect(text).not.toContain("hunter22");
+  expect(text).toContain("kept message");
+
+  const login = await post("/dashboard/login", { username: "test-admin", password: "test-password" });
+  const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+  const response = await fetch(base + "/api/admin/logs", { headers: { cookie } });
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as { logs: { text: string }[]; clips: number; languages: number };
+  expect(body.logs.at(-1)!.text).toContain("kept message");
+  expect(typeof body.clips).toBe("number");
+  expect(typeof body.languages).toBe("number");
 });
 
 test("logged in as admin, the testing page and its controls work", async () => {
