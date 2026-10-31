@@ -65,11 +65,13 @@ const page = `<!doctype html>
   <div class="row">
     <select id="voiceChannel" aria-label="Voice channel"></select>
     <button type="button" id="voiceButton">Join voice</button>
+    <button type="button" id="playButton" disabled>Play a clip</button>
   </div>
 </form>
 <script>
   const voiceBox = document.getElementById("voiceChannel");
   const voiceButton = document.getElementById("voiceButton");
+  const playButton = document.getElementById("playButton");
   let voiceBusy = false;
   let inChannel = null;
 
@@ -98,7 +100,16 @@ const page = `<!doctype html>
     voiceBox.disabled = Boolean(inChannel);
     voiceButton.textContent = inChannel ? "Leave voice" : "Join voice";
     voiceButton.disabled = !inChannel && voice.channels.length === 0;
+    playButton.disabled = !inChannel;
   }
+
+  playButton.addEventListener("click", async () => {
+    playButton.disabled = true;
+    errorBox.hidden = true;
+    const response = await fetch("/api/voice/play", { method: "POST" }).catch(() => null);
+    if (!response?.ok) showError("The bot couldn't play a clip.");
+    playButton.disabled = !inChannel;
+  });
 
   voiceButton.addEventListener("click", async () => {
     const leaving = Boolean(inChannel);
@@ -196,6 +207,7 @@ export type ChatActions = {
   currentVoiceChannelId: () => string | null;
   joinVoice: (channelId: string) => Promise<void>;
   leaveVoice: () => void;
+  playClip: () => Promise<void>;
 };
 
 // Other websites open in a browser can try to post here too, so anything that
@@ -235,6 +247,16 @@ export function startChatPage(port: number, actions: ChatActions) {
       if (pathname === "/api/voice/leave" && request.method === "POST") {
         actions.leaveVoice();
         return new Response(null, { status: 204 });
+      }
+
+      if (pathname === "/api/voice/play" && request.method === "POST") {
+        try {
+          await actions.playClip();
+          return new Response(null, { status: 204 });
+        } catch (error) {
+          console.error("Play failed:", error);
+          return new Response("Couldn't play", { status: 502 });
+        }
       }
 
       if (pathname === "/api/voice/join" && request.method === "POST") {

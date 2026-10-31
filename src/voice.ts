@@ -1,4 +1,9 @@
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 import {
+  AudioPlayerStatus,
+  createAudioPlayer,
+  createAudioResource,
   entersState,
   getVoiceConnection,
   joinVoiceChannel,
@@ -53,5 +58,26 @@ export async function joinVoice(guild: Guild, channelId: string) {
 }
 
 export function leaveVoice(guild: Guild) {
+  player.stop();
   getVoiceConnection(guild.id)?.destroy();
+}
+
+// One player for the bot. It turns a clip into sound the voice channel can hear.
+const player = createAudioPlayer();
+player.on("error", (error) => console.error("Clip failed:", error.message));
+player.on(AudioPlayerStatus.Idle, () => console.log("Clip finished"));
+
+// Plays a random clip from assets/ in the channel the bot is in.
+export async function playRandomClip(guild: Guild) {
+  const connection = getVoiceConnection(guild.id);
+  if (connection?.state.status !== VoiceConnectionStatus.Ready) throw new Error("Not in a voice channel");
+
+  const clips = (await readdir("assets")).filter((name) => name.endsWith(".mp3"));
+  const clip = clips[Math.floor(Math.random() * clips.length)];
+  if (!clip) throw new Error("No clips in assets/");
+
+  connection.subscribe(player);
+  player.play(createAudioResource(join("assets", clip)));
+  await entersState(player, AudioPlayerStatus.Playing, 5_000);
+  console.log("Clip playing");
 }

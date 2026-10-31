@@ -1,6 +1,6 @@
 import { Client, Events, GatewayIntentBits, REST, Routes, SlashCommandBuilder } from "discord.js";
 import { addMessage, startChatPage } from "./chat-page";
-import { currentVoiceChannelId, joinVoice, leaveVoice, listVoiceChannels } from "./voice";
+import { currentVoiceChannelId, joinVoice, leaveVoice, listVoiceChannels, playRandomClip } from "./voice";
 
 const { DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID } = process.env;
 
@@ -51,6 +51,7 @@ client.once(Events.ClientReady, async (ready) => {
     currentVoiceChannelId: () => currentVoiceChannelId(guild),
     joinVoice: (channelId) => joinVoice(guild, channelId),
     leaveVoice: () => leaveVoice(guild),
+    playClip: () => playRandomClip(guild),
   });
 
   // Fill the page with recent messages from each channel the bot can read.
