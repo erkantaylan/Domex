@@ -1,10 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { clips, games, guesses, languages, rounds } from "./db/schema";
+import { DEFAULT_SETTINGS, settingsForNewGame, type GameSettings } from "./settings";
 
 const ROUNDS_PER_GAME = 3;
-const SECONDS_AFTER_CLIP = 30;
-const SECONDS_BEFORE_ROUND = 5;
 
 // What the game needs from Discord. Keeping it separate lets tests run a game without Discord.
 export type GameTable = {
@@ -23,11 +22,14 @@ export type GameTable = {
 
 type RoundOutcome = "correct" | "timeout" | "stopped";
 
-type OpenRound = { id: number; language: string; finish: (outcome: RoundOutcome) => void };
+// Exists for the whole round, so a stop can always end it. Guesses count only while answersOpen is true.
+type OpenRound = { id: number; language: string; answersOpen: boolean; finish: (outcome: RoundOutcome) => void };
 
 type Game = {
   id: number;
   table: GameTable;
+  // Read once at the start, so changes on the dashboard wait for the next game.
+  settings: GameSettings;
   scores: Map<string, number>;
   round: OpenRound | null;
   stopped: boolean;
@@ -71,10 +73,19 @@ export async function startGame(table: GameTable) {
   if (activeGames.has(table.guildId)) throw new Error("A game is already running");
 
   // Hold the server's place right away, so a second /game start can't slip in.
-  const game: Game = { id: 0, table, scores: new Map(), round: null, stopped: false, endCountdown: null };
+  const game: Game = {
+    id: 0,
+    table,
+    settings: DEFAULT_SETTINGS,
+    scores: new Map(),
+    round: null,
+    stopped: false,
+    endCountdown: null,
+  };
   activeGames.set(table.guildId, game);
 
   try {
+    game.settings = await settingsForNewGame();
     const picked = await pickClips(ROUNDS_PER_GAME);
     if (picked.length < ROUNDS_PER_GAME) throw new Error("Not enough clips imported");
 
@@ -135,32 +146,52 @@ async function playRound(
   number: number,
   total: number,
 ) {
-  const { table } = game;
+  const { table, settings } = game;
 
   // One message and a wait, not one per second: that would spam the chat and hit Discord's rate limits.
-  // The round isn't open yet, so answers during this wait don't count.
-  await table.say(`Round ${number} of ${total} starts in ${SECONDS_BEFORE_ROUND} seconds...`);
-  await countdown(game, table.countdownMs ?? SECONDS_BEFORE_ROUND * 1000);
+  // Answers aren't open yet, so answers during this wait don't count.
+  const seconds = settings.countdownSeconds;
+  await table.say(
+    seconds === 0
+      ? `Round ${number} of ${total}!`
+      : `Round ${number} of ${total} starts in ${seconds} ${seconds === 1 ? "second" : "seconds"}...`,
+  );
+  await countdown(game, table.countdownMs ?? seconds * 1000);
   // A stopped game never reaches the database or the clip for this round.
   if (game.stopped) return;
 
   const [row] = await db.insert(rounds).values({ gameId: game.id, clipId: clip.id, number }).returning({ id: rounds.id });
   if (!row) throw new Error("Couldn't save the round");
 
-  await table.say("Listen!");
+  const openFromStart = settings.answersOpen === "during";
+  await table.say(openFromStart ? "Listen!" : "Listen! Answers open when the clip ends.");
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const outcome = await new Promise<RoundOutcome>((resolve, reject) => {
-    // Answers count from the moment the clip starts.
-    game.round = { id: row.id, language: clip.language, finish: resolve };
+    const round: OpenRound = { id: row.id, language: clip.language, answersOpen: openFromStart, finish: resolve };
+    game.round = round;
     if (game.stopped) return resolve("stopped");
+
+    function startTimer(announcement: string) {
+      timer = setTimeout(() => {
+        // A right answer closes the round before it's saved, and that answer wins.
+        if (game.round === round) resolve("timeout");
+      }, table.answerWindowMs ?? settings.answerSeconds * 1000);
+      table.say(announcement).catch(reject);
+    }
+
+    const timerFromStart = openFromStart && settings.timerStart === "answers-open";
+    if (timerFromStart) startTimer(`${settings.answerSeconds} seconds left to answer!`);
 
     table
       .play(clip.filePath)
       .then(() => {
-        if (game.round?.id !== row.id) return;
-        timer = setTimeout(() => resolve("timeout"), table.answerWindowMs ?? SECONDS_AFTER_CLIP * 1000);
-        return table.say(`${SECONDS_AFTER_CLIP} seconds left to answer!`);
+        // The clip ended by itself. If the round is already over, it was cut off and there's nothing to do.
+        if (game.round !== round) return;
+        round.answersOpen = true;
+        if (timerFromStart) return;
+        const opening = openFromStart ? "" : "Answers are open! ";
+        startTimer(`${opening}${settings.answerSeconds} seconds left to answer!`);
       })
       .catch(reject);
   }).finally(() => {
@@ -193,12 +224,12 @@ function scoreboard(game: Game) {
   return ranked.map(([userId, score]) => `<@${userId}>: ${score}`).join(", ");
 }
 
-// Called for every chat message. Only messages in the game's channel during a round count.
+// Called for every chat message. Only messages in the game's channel while answers are open count.
 export async function handleGuess(guildId: string, channelId: string, userId: string, text: string) {
   const game = activeGames.get(guildId);
   if (!game || game.table.channelId !== channelId) return;
   const round = game.round;
-  if (!round) return;
+  if (!round?.answersOpen) return;
 
   const correct = normalise(text) === normalise(round.language);
   // Close the round before any waiting, so two right answers can't both win.
