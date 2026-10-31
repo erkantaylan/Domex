@@ -1,4 +1,5 @@
-import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, check, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const languages = pgTable("languages", {
   id: serial("id").primaryKey(),
@@ -61,3 +62,19 @@ export const sessions = pgTable("sessions", {
   displayName: text("display_name").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+export const answersOpen = pgEnum("answers_open", ["during", "after"]);
+export const timerStart = pgEnum("timer_start", ["answers-open", "clip-end"]);
+
+// The game timings set on the dashboard. The check keeps this table to one row.
+export const gameSettings = pgTable(
+  "game_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    countdownSeconds: integer("countdown_seconds").notNull().default(5),
+    answersOpen: answersOpen("answers_open").notNull().default("during"),
+    answerSeconds: integer("answer_seconds").notNull().default(30),
+    timerStart: timerStart("timer_start").notNull().default("answers-open"),
+  },
+  (table) => [check("game_settings_single_row", sql`${table.id} = 1`)],
+);

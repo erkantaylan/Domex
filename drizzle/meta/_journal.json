@@ -15,6 +15,13 @@
       "when": 1793468328658,
       "tag": "0001_grey_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793469799810,
+      "tag": "0002_smooth_onslaught",
+      "breakpoints": true
     }
   ]
 }
