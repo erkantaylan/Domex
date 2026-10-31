@@ -41,7 +41,9 @@ const page = `<!doctype html>
   .meta { display: block; font-size: .85rem; color: var(--muted); }
   .channel { color: var(--accent); font-weight: 600; }
   .author { font-weight: 600; color: var(--text); }
-  main { padding-bottom: 96px; }
+  main { padding-bottom: 150px; }
+  .row + .row { margin-top: 8px; }
+  #voiceChannel { flex: 1 1 200px; min-width: 0; }
   form { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--line); }
   .row { display: flex; flex-wrap: wrap; gap: 8px; max-width: 900px; margin: 0 auto; }
   select, input, button { font: inherit; padding: 8px; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 6px; }
@@ -60,8 +62,64 @@ const page = `<!doctype html>
     <input id="text" maxlength="2000" autocomplete="off" placeholder="Send a message as the bot" aria-label="Message">
     <button>Send</button>
   </div>
+  <div class="row">
+    <select id="voiceChannel" aria-label="Voice channel"></select>
+    <button type="button" id="voiceButton">Join voice</button>
+  </div>
 </form>
 <script>
+  const voiceBox = document.getElementById("voiceChannel");
+  const voiceButton = document.getElementById("voiceButton");
+  let voiceBusy = false;
+  let inChannel = null;
+
+  function showError(text) {
+    errorBox.textContent = text;
+    errorBox.hidden = false;
+  }
+
+  async function refreshVoice() {
+    if (voiceBusy) return;
+    const response = await fetch("/api/voice");
+    const voice = await response.json();
+    if (voiceBusy) return;
+    if (voiceBox.options.length !== voice.channels.length) {
+      const selected = voiceBox.value;
+      voiceBox.replaceChildren(...voice.channels.map((c) => {
+        const option = document.createElement("option");
+        option.value = c.id;
+        option.textContent = "🔊 " + c.name;
+        return option;
+      }));
+      if (selected) voiceBox.value = selected;
+    }
+    inChannel = voice.current;
+    if (inChannel) voiceBox.value = inChannel;
+    voiceBox.disabled = Boolean(inChannel);
+    voiceButton.textContent = inChannel ? "Leave voice" : "Join voice";
+    voiceButton.disabled = !inChannel && voice.channels.length === 0;
+  }
+
+  voiceButton.addEventListener("click", async () => {
+    const leaving = Boolean(inChannel);
+    voiceBusy = true;
+    voiceButton.disabled = true;
+    voiceButton.textContent = leaving ? "Leaving..." : "Joining...";
+    errorBox.hidden = true;
+    const response = await fetch(leaving ? "/api/voice/leave" : "/api/voice/join", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ channelId: voiceBox.value }),
+    }).catch(() => null);
+    if (!response?.ok) showError(leaving ? "The bot couldn't leave the channel." : "The bot couldn't join the channel.");
+    voiceBusy = false;
+    await refreshVoice().catch(() => {});
+    voiceButton.disabled = false;
+  });
+
+  refreshVoice().catch(() => {});
+  setInterval(() => refreshVoice().catch(() => {}), 2000);
+
   const form = document.getElementById("form");
   const channelBox = document.getElementById("channel");
   const textBox = document.getElementById("text");
@@ -134,24 +192,68 @@ const page = `<!doctype html>
 export type ChatActions = {
   listChannels: () => Promise<{ id: string; name: string }[]>;
   send: (channelId: string, text: string) => Promise<void>;
+  listVoiceChannels: () => Promise<{ id: string; name: string }[]>;
+  currentVoiceChannelId: () => string | null;
+  joinVoice: (channelId: string) => Promise<void>;
+  leaveVoice: () => void;
 };
+
+// Other websites open in a browser can try to post here too, so anything that
+// changes something must come from our own page, whichever address it's on.
+function isFromOurPage(request: Request) {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
 
 export function startChatPage(port: number, actions: ChatActions) {
   // The server itself only listens on this computer. A tunnel can publish it.
   Bun.serve({
     hostname: "127.0.0.1",
     port,
+    // Joining voice can take up to 20 seconds, so don't cut the request off sooner.
+    idleTimeout: 30,
     async fetch(request) {
       const { pathname } = new URL(request.url);
 
-      if (pathname === "/api/send" && request.method === "POST") {
-        // Other websites open in a browser can try to post here too, so
-        // sending must come from our own page, whichever address it's on.
-        const origin = request.headers.get("origin");
-        const host = request.headers.get("host");
-        if (!origin || !host || new URL(origin).host !== host) {
-          return new Response("Forbidden", { status: 403 });
+      if (request.method === "POST" && !isFromOurPage(request)) {
+        return new Response("Forbidden", { status: 403 });
+      }
+
+      if (pathname === "/api/voice") {
+        return Response.json({
+          channels: await actions.listVoiceChannels(),
+          current: actions.currentVoiceChannelId(),
+        });
+      }
+
+      if (pathname === "/api/voice/leave" && request.method === "POST") {
+        actions.leaveVoice();
+        return new Response(null, { status: 204 });
+      }
+
+      if (pathname === "/api/voice/join" && request.method === "POST") {
+        const body = (await request.json().catch(() => null)) as { channelId?: unknown } | null;
+        const voiceChannels = await actions.listVoiceChannels();
+        const channelId = body?.channelId;
+        if (typeof channelId !== "string" || !voiceChannels.some((channel) => channel.id === channelId)) {
+          return new Response("Unknown channel", { status: 400 });
         }
+        try {
+          await actions.joinVoice(channelId);
+          return new Response(null, { status: 204 });
+        } catch (error) {
+          console.error("Voice join failed:", error);
+          return new Response("Couldn't join", { status: 502 });
+        }
+      }
+
+      if (pathname === "/api/send" && request.method === "POST") {
         const body = (await request.json().catch(() => null)) as { channelId?: unknown; text?: unknown } | null;
         const text = typeof body?.text === "string" ? body.text.trim() : "";
         const channelId = body?.channelId;

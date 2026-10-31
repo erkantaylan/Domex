@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits, REST, Routes, SlashCommandBuilder } from "discord.js";
 import { addMessage, startChatPage } from "./chat-page";
+import { currentVoiceChannelId, joinVoice, leaveVoice, listVoiceChannels } from "./voice";
 
 const { DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID } = process.env;
 
@@ -17,7 +18,12 @@ await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_
 });
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
+  ],
 });
 
 client.once(Events.ClientReady, async (ready) => {
@@ -27,11 +33,13 @@ client.once(Events.ClientReady, async (ready) => {
   startChatPage(3100, {
     // Only the channels where the bot is allowed to write.
     async listChannels() {
-      const all = await guild.channels.fetch();
-      const me = await guild.members.fetchMe();
-      return [...all.values()]
-        .filter((channel) => channel?.isTextBased() && channel.permissionsFor(me).has(["ViewChannel", "SendMessages"]))
-        .map((channel) => ({ id: channel!.id, name: channel!.name }));
+      const me = guild.members.me ?? (await guild.members.fetchMe());
+      return [...guild.channels.cache.values()]
+        .filter(
+          (channel) =>
+            channel.isTextBased() && !channel.isThread() && channel.permissionsFor(me).has(["ViewChannel", "SendMessages"]),
+        )
+        .map((channel) => ({ id: channel.id, name: channel.name }));
     },
     async send(channelId, text) {
       const channel = await guild.channels.fetch(channelId);
@@ -39,6 +47,10 @@ client.once(Events.ClientReady, async (ready) => {
       // No pings: text like @everyone stays plain text.
       await channel.send({ content: text, allowedMentions: { parse: [] } });
     },
+    listVoiceChannels: () => listVoiceChannels(guild),
+    currentVoiceChannelId: () => currentVoiceChannelId(guild),
+    joinVoice: (channelId) => joinVoice(guild, channelId),
+    leaveVoice: () => leaveVoice(guild),
   });
 
   // Fill the page with recent messages from each channel the bot can read.
