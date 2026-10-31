@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { count } from "drizzle-orm";
 import { readAuthSettings, readCookie } from "./auth";
+import { checkClipNames, listClipPaths, looksLikeMp3, MAX_CLIP_BYTES, saveClip } from "./clips";
 import { dashboardPage, lockedPage, loginPage } from "./dashboard-page";
 import { db } from "./db";
 import { clips, languages } from "./db/schema";
@@ -205,6 +206,24 @@ async function logsApi(request: Request, settings: AdminSettings) {
   return json({ logs: recentLogs(), languages: languageCount?.total ?? 0, clips: clipCount?.total ?? 0 });
 }
 
+async function clipsApi(request: Request, settings: AdminSettings) {
+  if (!isAdmin(request, settings)) return json({ error: "Not logged in" }, 401);
+  if (request.method === "GET") return json({ paths: await listClipPaths() });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const { searchParams } = new URL(request.url);
+  const problem = checkClipNames(searchParams.get("language") ?? "", searchParams.get("name") ?? "");
+  if (problem) return json({ error: problem }, 400);
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_CLIP_BYTES) return json({ error: "File too big" }, 413);
+
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length > MAX_CLIP_BYTES) return json({ error: "File too big" }, 413);
+  if (!looksLikeMp3(bytes)) return json({ error: "That isn't an MP3 file" }, 400);
+
+  await saveClip(searchParams.get("language")!, searchParams.get("name")!, bytes);
+  return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
+}
+
 function route(request: Request, settings: AdminSettings) {
   const { pathname } = new URL(request.url);
   const { method } = request;
@@ -218,6 +237,7 @@ function route(request: Request, settings: AdminSettings) {
   if (pathname === "/dashboard/logout" && method === "POST") return logout(request, settings);
   if (pathname === "/api/admin/settings") return settingsApi(request, settings);
   if (pathname === "/api/admin/logs") return logsApi(request, settings);
+  if (pathname === "/api/admin/clips") return clipsApi(request, settings);
   return null;
 }
 

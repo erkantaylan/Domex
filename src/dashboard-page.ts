@@ -27,7 +27,9 @@ const head = (title: string) => `<!doctype html>
   #summary { padding: 12px 0; border-top: 1px solid var(--line); }
   #status { margin: 8px 0 0; color: var(--accent); font-weight: 600; }
   #error { margin: 8px 0 0; color: var(--error); }
-  #logsSection { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+  #logsSection, #uploadSection { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+  #clipFolder { width: 100%; box-sizing: border-box; margin-top: 8px; }
+  #uploadStatus { margin: 8px 0 0; font-weight: 600; overflow-wrap: anywhere; }
   h2 { font-size: 1.1rem; margin: 0 0 4px; }
   #clipCount { margin: 0 0 8px; font-weight: 600; }
   #clipCount.none { color: var(--error); }
@@ -113,6 +115,12 @@ export const dashboardPage = `${head("Dashboard")}<div id="top">
   <p id="status" role="status" hidden></p>
   <p id="error" role="alert" hidden></p>
 </form>
+<section id="uploadSection">
+  <h2>Upload clips</h2>
+  <p class="hint">Pick a folder that has one folder per language, with MP3 files inside. Clips already on the server are skipped, so you can run it again if it stops. Keep this page open while it runs.</p>
+  <input id="clipFolder" type="file" webkitdirectory multiple aria-label="Clips folder">
+  <p id="uploadStatus" role="status"></p>
+</section>
 <section id="logsSection">
   <h2>What happened</h2>
   <p id="clipCount" role="status"></p>
@@ -146,6 +154,68 @@ export const dashboardPage = `${head("Dashboard")}<div id="top">
 
   loadLogs();
   setInterval(loadLogs, 5000);
+
+  const clipFolder = document.getElementById("clipFolder");
+  const uploadStatus = document.getElementById("uploadStatus");
+
+  // Sends one clip, trying again if the connection drops. Returns whether it worked.
+  async function uploadClip({ file, language, name }) {
+    const query = "?language=" + encodeURIComponent(language) + "&name=" + encodeURIComponent(name);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await fetch("/api/admin/clips" + query, { method: "POST", body: file }).catch(() => null);
+      if (response?.ok) return true;
+      if (response?.status === 401) return false;
+      if (response && response.status < 500) return false;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+    return false;
+  }
+
+  clipFolder.addEventListener("change", async () => {
+    clipFolder.disabled = true;
+    uploadStatus.textContent = "Checking what's already on the server...";
+    const existing = await fetch("/api/admin/clips").then((r) => r.ok ? r.json() : null).catch(() => null);
+    if (!existing) {
+      uploadStatus.textContent = "Couldn't check the server. Reload the page and try again.";
+      clipFolder.disabled = false;
+      return;
+    }
+    const known = new Set(existing.paths);
+
+    const picked = [...clipFolder.files].flatMap((file) => {
+      const parts = file.webkitRelativePath.split("/");
+      const name = parts.at(-1);
+      const language = parts.at(-2);
+      if (parts.length < 3 || !name.toLowerCase().endsWith(".mp3") || language === "The apple is red") return [];
+      return [{ file, language, name }];
+    });
+    const queue = picked.filter((clip) => !known.has("assets/" + clip.language + "/" + clip.name));
+    const skipped = picked.length - queue.length;
+    let sent = 0;
+    const failed = [];
+
+    function show(done) {
+      uploadStatus.textContent = (done ? "Finished: " : "Uploading: ")
+        + sent + " of " + queue.length + " sent, " + skipped + " already there, " + failed.length + " failed."
+        + (failed.length ? " Failed: " + failed.slice(0, 5).join(", ") + (failed.length > 5 ? "..." : "") : "");
+    }
+
+    // Three at a time keeps it quick without flooding the server.
+    async function worker() {
+      for (let clip = remaining.shift(); clip; clip = remaining.shift()) {
+        if (await uploadClip(clip)) sent++;
+        else failed.push(clip.name);
+        show(false);
+      }
+    }
+    const remaining = [...queue];
+    show(false);
+    await Promise.all([worker(), worker(), worker()]);
+    show(true);
+    clipFolder.value = "";
+    clipFolder.disabled = false;
+    loadLogs();
+  });
 
   const form = document.getElementById("form");
   const loading = document.getElementById("loading");
