@@ -10,6 +10,7 @@ const head = (title: string) => `<!doctype html>
   @media (prefers-color-scheme: dark) { :root { --bg: #1b1c1a; --text: #ecece8; --muted: #a0a09a; --line: #333431; --accent: #6cc48f; --error: #e8796c; } }
   body { margin: 0 auto; max-width: 480px; padding: 16px; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, sans-serif; }
   h1 { font-size: 1.3rem; margin: 0 0 12px; }
+  .source { margin: 0 0 8px; font-size: .85rem; }
   #top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
   #top h1 { margin: 0; }
   .field { display: block; padding: 12px 0; border-top: 1px solid var(--line); }
@@ -38,6 +39,7 @@ const head = (title: string) => `<!doctype html>
   .log.bad { color: var(--error); }
   .log time { display: block; color: var(--muted); }
 </style>
+<p class="source"><a href="https://github.com/erkantaylan/Domex" target="_blank" rel="noopener">GitHub</a></p>
 `;
 
 export const lockedPage = `${head("Dashboard")}<h1>Dashboard</h1>

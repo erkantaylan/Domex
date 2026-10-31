@@ -37,6 +37,7 @@ const styles = `<style>
   .line { padding: 8px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
   .meta { display: block; font-size: .85rem; color: var(--muted); }
   #empty[hidden] { display: none; }
+  .source { margin: 0 0 8px; font-size: .85rem; }
   .channel { color: var(--accent); font-weight: 600; }
   .author { font-weight: 600; color: var(--text); }
   main { padding-bottom: 230px; }
@@ -80,6 +81,7 @@ const homePage = `<!doctype html>
 <title>Language Jungle</title>
 ${styles}
 <h1>Language Jungle</h1>
+<p class="source"><a href="https://github.com/erkantaylan/Domex" target="_blank" rel="noopener">GitHub</a></p>
 <div id="top">
 <div id="account">
   <span id="accountName"></span>
@@ -248,6 +250,7 @@ const testingPage = `<!doctype html>
 <title>Testing</title>
 ${styles}
 <h1>Testing</h1>
+<p class="source"><a href="https://github.com/erkantaylan/Domex" target="_blank" rel="noopener">GitHub</a></p>
 <p><a href="/dashboard">Back to the dashboard</a></p>
 <p id="empty" class="meta">Waiting for messages...</p>
 <main id="list"></main>
