@@ -1,5 +1,6 @@
 import type { Message } from "discord.js";
 import allLanguages from "./all-languages.json";
+import { handleAuthRequest } from "./auth";
 
 type ChatLine = { id: string; channel: string; author: string; text: string; time: number };
 
@@ -53,21 +54,46 @@ const page = `<!doctype html>
   button { cursor: pointer; border-color: var(--accent); color: var(--accent); font-weight: 600; }
   #error { max-width: 900px; margin: 0 auto 6px; color: #c0392b; }
   /* Stays at the top while scrolling, because the page jumps down to the newest message. */
-  #languages { position: sticky; top: 0; z-index: 1; margin-bottom: 12px; padding-bottom: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
-  #languages summary { padding: 4px 0; cursor: pointer; color: var(--accent); font-weight: 600; }
+  #top { position: sticky; top: 0; z-index: 1; margin-bottom: 12px; padding-bottom: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  #account { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 4px; }
+  #account [hidden] { display: none; }
+  #accountName { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .button { padding: 8px; border: 1px solid var(--accent); border-radius: 6px; color: var(--accent); font-weight: 600; text-decoration: none; }
+  #top summary { padding: 4px 0; cursor: pointer; color: var(--accent); font-weight: 600; }
   #languageSearch { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; }
   #languageStatus { margin: 6px 0; font-size: .85rem; color: var(--muted); }
   /* A short scrolling list, so the search box and the fixed form both stay in view. */
   #languageList { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; max-height: 30vh; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; overflow-wrap: anywhere; list-style: none; }
   #languageList[hidden] { display: none; }
+  #gamesStatus { margin: 6px 0; font-size: .85rem; color: var(--muted); }
+  /* Scrolls by itself, like the language list, so the fixed form can't cover the end of it. */
+  #gamesList { max-height: 35vh; overflow-y: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
+  #gamesList[hidden] { display: none; }
+  .game { padding: 8px 0; border-top: 1px solid var(--line); }
+  .game ol { margin: 4px 0 0; padding: 0; list-style: none; }
+  .game li { padding: 2px 0; }
+  .game .language { font-weight: 600; }
+  .game .right { color: var(--accent); font-weight: 600; }
 </style>
 <h1>Server Chats</h1>
-<details id="languages">
+<div id="top">
+<div id="account">
+  <span id="accountName"></span>
+  <a id="loginLink" class="button" href="/auth/login" hidden>Log in with Discord</a>
+  <button type="button" id="logoutButton" hidden>Log out</button>
+</div>
+<details id="languages" name="topSections">
   <summary>Languages</summary>
   <input id="languageSearch" type="search" autocomplete="off" placeholder="Search languages" aria-label="Search languages">
   <p id="languageStatus" role="status">Loading...</p>
   <ul id="languageList"></ul>
 </details>
+<details id="myGames" name="topSections">
+  <summary>My games</summary>
+  <p id="gamesStatus" role="status">Loading...</p>
+  <div id="gamesList" hidden></div>
+</details>
+</div>
 <p id="empty" class="meta">Waiting for messages...</p>
 <main id="list"></main>
 <form id="form">
@@ -251,6 +277,98 @@ const page = `<!doctype html>
     if (languageBox.open && !languages) loadLanguages();
   });
   languageSearch.addEventListener("input", showLanguages);
+
+  const accountName = document.getElementById("accountName");
+  const loginLink = document.getElementById("loginLink");
+  const logoutButton = document.getElementById("logoutButton");
+  const gamesBox = document.getElementById("myGames");
+  const gamesStatus = document.getElementById("gamesStatus");
+  const gamesList = document.getElementById("gamesList");
+  const statusNames = { finished: "Finished", stopped: "Stopped", failed: "Ended early" };
+  let loggedOutNote = "Loading...";
+
+  function showLoggedOut(loginAvailable) {
+    loggedOutNote = loginAvailable ? "Log in to see your games." : "Login isn't set up yet.";
+    accountName.textContent = loginAvailable ? "" : loggedOutNote;
+    loginLink.hidden = !loginAvailable;
+    logoutButton.hidden = true;
+    gamesStatus.textContent = loggedOutNote;
+    gamesList.hidden = true;
+    gamesList.replaceChildren();
+  }
+
+  async function loadAccount() {
+    try {
+      const response = await fetch("/api/me");
+      const body = await response.json();
+      if (response.status === 401) return showLoggedOut(body.loginAvailable);
+      if (!response.ok) throw new Error();
+      accountName.textContent = "Logged in as " + body.name;
+      loginLink.hidden = true;
+      logoutButton.hidden = false;
+      if (gamesBox.open) loadGames();
+    } catch {
+      accountName.textContent = "Couldn't check your login.";
+    }
+  }
+
+  function roundItem(round) {
+    const item = document.createElement("li");
+    const result = round.correct ? "Right" : round.guessed ? "Wrong" : "No guess";
+    item.append(span("language", "Round " + round.number + ": " + round.language), " · ", span(round.correct ? "right" : "", result));
+    for (const guess of round.guesses) {
+      item.append(span("meta", "You said: " + guess.text + " (" + (guess.correct ? "right" : "wrong") + ")"));
+    }
+    return item;
+  }
+
+  function gameCard(game) {
+    const card = document.createElement("div");
+    card.className = "game";
+    const rounds = document.createElement("ol");
+    rounds.append(...game.rounds.map(roundItem));
+    card.append(
+      span("meta", new Date(game.date).toLocaleString() + " · " + (statusNames[game.status] ?? game.status)),
+      game.correctRounds + " of " + game.rounds.length + " rounds right",
+      rounds,
+    );
+    return card;
+  }
+
+  // Fetched each time the section opens, so a game that just ended shows up.
+  async function loadGames() {
+    gamesStatus.textContent = "Loading...";
+    try {
+      const response = await fetch("/api/history");
+      if (response.status === 401) {
+        const body = await response.json();
+        return showLoggedOut(body.loginAvailable);
+      }
+      if (!response.ok) throw new Error();
+      const { games } = await response.json();
+      gamesList.replaceChildren(...games.map(gameCard));
+      gamesList.hidden = games.length === 0;
+      gamesStatus.textContent = games.length
+        ? games.length + (games.length === 1 ? " game" : " games")
+        : "No games yet. A game shows up here once it has ended.";
+    } catch {
+      gamesStatus.textContent = "Couldn't load your games. Close this section and open it again to retry.";
+    }
+  }
+
+  gamesBox.addEventListener("toggle", () => {
+    if (gamesBox.open && !logoutButton.hidden) loadGames();
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    logoutButton.disabled = true;
+    const response = await fetch("/auth/logout", { method: "POST" }).catch(() => null);
+    logoutButton.disabled = false;
+    if (response?.ok) showLoggedOut(true);
+    else accountName.textContent = "Couldn't log out. Please try again.";
+  });
+
+  loadAccount();
 </script>
 </html>`;
 
@@ -279,7 +397,7 @@ function isFromOurPage(request: Request) {
 
 export function startChatPage(port: number, actions: ChatActions) {
   // The server itself only listens on this computer. A tunnel can publish it.
-  Bun.serve({
+  const server = Bun.serve({
     hostname: "127.0.0.1",
     port,
     // Joining voice can take up to 20 seconds, so don't cut the request off sooner.
@@ -290,6 +408,9 @@ export function startChatPage(port: number, actions: ChatActions) {
       if (request.method === "POST" && !isFromOurPage(request)) {
         return new Response("Forbidden", { status: 403 });
       }
+
+      const authResponse = await handleAuthRequest(request);
+      if (authResponse) return authResponse;
 
       if (pathname === "/api/voice") {
         return Response.json({
@@ -357,5 +478,6 @@ export function startChatPage(port: number, actions: ChatActions) {
       return new Response("Not found", { status: 404 });
     },
   });
-  console.log(`Chat page: http://127.0.0.1:${port}`);
+  console.log(`Chat page: http://127.0.0.1:${server.port}`);
+  return server;
 }
