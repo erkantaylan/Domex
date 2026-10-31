@@ -399,7 +399,7 @@ function isFromOurPage(request: Request) {
 export function startChatPage(port: number, actions: ChatActions) {
   // The server itself only listens on this computer. A tunnel can publish it.
   const server = Bun.serve({
-    hostname: "127.0.0.1",
+    hostname: process.env.HOST ?? "127.0.0.1",
     port,
     // Joining voice can take up to 20 seconds, so don't cut the request off sooner.
     idleTimeout: 30,

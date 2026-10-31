@@ -1,170 +1,670 @@
 [
-  {"name":"Afrikaans","clips":7},
-  {"name":"Albanian","clips":7},
-  {"name":"Amharic","clips":6},
-  {"name":"Ancient Egyptian","clips":4},
-  {"name":"Ancient Greek","clips":11},
-  {"name":"Antillean Creole","clips":10},
-  {"name":"Arabic","clips":12},
-  {"name":"Armenian","clips":9},
-  {"name":"Asturian","clips":13},
-  {"name":"Avar","clips":5},
-  {"name":"Azerbaijani","clips":8},
-  {"name":"Bajau","clips":1},
-  {"name":"Bashkir","clips":6},
-  {"name":"Basque","clips":15},
-  {"name":"Bavarian","clips":4},
-  {"name":"Belarusian","clips":4},
-  {"name":"Bengali","clips":5},
-  {"name":"Bird Language","clips":1},
-  {"name":"Breton","clips":4},
-  {"name":"Bulgarian","clips":13},
-  {"name":"Burmese","clips":4},
-  {"name":"Cantonese","clips":15},
-  {"name":"Catalan","clips":14},
-  {"name":"Cebuano","clips":2},
-  {"name":"Centish","clips":7},
-  {"name":"Chechen","clips":15},
-  {"name":"Chuvash","clips":6},
-  {"name":"Cornish","clips":6},
-  {"name":"Corsican","clips":3},
-  {"name":"Crimean Tatar","clips":6},
-  {"name":"Croatian","clips":8},
-  {"name":"Czech","clips":11},
-  {"name":"Danish","clips":12},
-  {"name":"Dothraki","clips":2},
-  {"name":"Dusun","clips":4},
-  {"name":"Dutch","clips":7},
-  {"name":"English","clips":6},
-  {"name":"Esperanto","clips":3},
-  {"name":"Estonian","clips":17},
-  {"name":"Faroese","clips":20},
-  {"name":"Farsi","clips":17},
-  {"name":"Finnish","clips":10},
-  {"name":"Flemish","clips":6},
-  {"name":"French","clips":23},
-  {"name":"Frisian","clips":4},
-  {"name":"Friulian","clips":2},
-  {"name":"Fuzhounese","clips":9},
-  {"name":"Gagauz","clips":9},
-  {"name":"Galician","clips":11},
-  {"name":"Gallo","clips":1},
-  {"name":"Georgian","clips":11},
-  {"name":"German","clips":15},
-  {"name":"Greenlandic","clips":7},
-  {"name":"Guarani","clips":10},
-  {"name":"Hainanese","clips":8},
-  {"name":"Hakka","clips":11},
-  {"name":"Hausa","clips":10},
-  {"name":"Hawaiian","clips":8},
-  {"name":"Hebrew","clips":9},
-  {"name":"Hindi","clips":7},
-  {"name":"Hungarian","clips":9},
-  {"name":"Icelandic","clips":10},
-  {"name":"Igbo","clips":5},
-  {"name":"Ilocano","clips":6},
-  {"name":"Indonesian","clips":7},
-  {"name":"Irish","clips":14},
-  {"name":"Italian","clips":15},
-  {"name":"Japanese","clips":10},
-  {"name":"Javanese","clips":1},
-  {"name":"Kannada","clips":11},
-  {"name":"Karachay-Balkar","clips":2},
-  {"name":"Kazakh","clips":17},
-  {"name":"Khmer","clips":1},
-  {"name":"Korean","clips":11},
-  {"name":"Kurdish","clips":5},
-  {"name":"Kyrgyz","clips":11},
-  {"name":"Lao","clips":10},
-  {"name":"Latin","clips":3},
-  {"name":"Latvian","clips":15},
-  {"name":"Lebanese","clips":9},
-  {"name":"Ligurian","clips":2},
-  {"name":"Lithuanian","clips":12},
-  {"name":"Luxembourgish","clips":5},
-  {"name":"Malay","clips":10},
-  {"name":"Malayalam","clips":10},
-  {"name":"Maltese","clips":17},
-  {"name":"Mandarin","clips":13},
-  {"name":"Marathi","clips":3},
-  {"name":"Miyakoan","clips":2},
-  {"name":"Modern Greek","clips":15},
-  {"name":"Mongolian","clips":6},
-  {"name":"Morse Code","clips":2},
-  {"name":"Nahuatl","clips":11},
-  {"name":"Navajo","clips":11},
-  {"name":"Ndebele","clips":7},
-  {"name":"Neapolitan","clips":2},
-  {"name":"Nepali","clips":4},
-  {"name":"Nogai","clips":4},
-  {"name":"Norwegian","clips":14},
-  {"name":"Occitan","clips":11},
-  {"name":"Okinawan","clips":2},
-  {"name":"Old Norse","clips":11},
-  {"name":"Old Turkic","clips":2},
-  {"name":"Ossetian","clips":10},
-  {"name":"Ottoman Turkish","clips":2},
-  {"name":"Papiamentu","clips":2},
-  {"name":"Penan","clips":4},
-  {"name":"Polish","clips":17},
-  {"name":"Portuguese","clips":15},
-  {"name":"Proto-Indo-European","clips":4},
-  {"name":"Proto-Slavic","clips":4},
-  {"name":"Proto-Turkic","clips":3},
-  {"name":"Punjabi","clips":10},
-  {"name":"Quechua","clips":10},
-  {"name":"Romanian","clips":14},
-  {"name":"Romansh","clips":10},
-  {"name":"Russian","clips":12},
-  {"name":"Sami","clips":13},
-  {"name":"Samoan","clips":10},
-  {"name":"Sanskrit","clips":4},
-  {"name":"Sardinian","clips":2},
-  {"name":"Scottish Gaelic","clips":11},
-  {"name":"Serbian","clips":12},
-  {"name":"Shanghainese","clips":7},
-  {"name":"Shona","clips":3},
-  {"name":"Sichuanese","clips":9},
-  {"name":"Sicilian","clips":5},
-  {"name":"Sign Language","clips":1},
-  {"name":"Silbo Gomero","clips":1},
-  {"name":"Silesian","clips":2},
-  {"name":"Sinhala","clips":2},
-  {"name":"Slovak","clips":5},
-  {"name":"Slovenian","clips":4},
-  {"name":"Spanish","clips":15},
-  {"name":"Sundanese","clips":1},
-  {"name":"Swabian","clips":10},
-  {"name":"Swahili","clips":11},
-  {"name":"Swedish","clips":13},
-  {"name":"Tagalog","clips":13},
-  {"name":"Taishanese","clips":2},
-  {"name":"Taiwanese","clips":4},
-  {"name":"Tamazight","clips":15},
-  {"name":"Tamil","clips":11},
-  {"name":"Tatar","clips":10},
-  {"name":"Telugu","clips":10},
-  {"name":"Teochew","clips":3},
-  {"name":"Thai","clips":12},
-  {"name":"The apple is red","clips":8},
-  {"name":"Tibetan","clips":8},
-  {"name":"Tigrinya","clips":10},
-  {"name":"Tongan","clips":3},
-  {"name":"Tupi","clips":10},
-  {"name":"Turkish","clips":20},
-  {"name":"Turkmen","clips":7},
-  {"name":"Tuvan","clips":14},
-  {"name":"Ukrainian","clips":13},
-  {"name":"Urdu","clips":2},
-  {"name":"Uyghur","clips":15},
-  {"name":"Uzbek","clips":15},
-  {"name":"Vietnamese","clips":14},
-  {"name":"Welsh","clips":11},
-  {"name":"Wenzhounese","clips":11},
-  {"name":"Wolof","clips":11},
-  {"name":"Xhosa","clips":12},
-  {"name":"Yakut","clips":5},
-  {"name":"Yiddish","clips":11},
-  {"name":"Yoruba","clips":5},
-  {"name":"Zulu","clips":11}
+  {
+    "name": "Afrikaans",
+    "clips": 7
+  },
+  {
+    "name": "Albanian",
+    "clips": 7
+  },
+  {
+    "name": "Amharic",
+    "clips": 6
+  },
+  {
+    "name": "Ancient Egyptian",
+    "clips": 4
+  },
+  {
+    "name": "Ancient Greek",
+    "clips": 11
+  },
+  {
+    "name": "Antillean Creole",
+    "clips": 10
+  },
+  {
+    "name": "Arabic",
+    "clips": 12
+  },
+  {
+    "name": "Armenian",
+    "clips": 9
+  },
+  {
+    "name": "Asturian",
+    "clips": 13
+  },
+  {
+    "name": "Avar",
+    "clips": 5
+  },
+  {
+    "name": "Azerbaijani",
+    "clips": 8
+  },
+  {
+    "name": "Bajau",
+    "clips": 1
+  },
+  {
+    "name": "Bashkir",
+    "clips": 6
+  },
+  {
+    "name": "Basque",
+    "clips": 15
+  },
+  {
+    "name": "Bavarian",
+    "clips": 4
+  },
+  {
+    "name": "Belarusian",
+    "clips": 4
+  },
+  {
+    "name": "Bengali",
+    "clips": 5
+  },
+  {
+    "name": "Bird Language",
+    "clips": 1
+  },
+  {
+    "name": "Breton",
+    "clips": 4
+  },
+  {
+    "name": "Bulgarian",
+    "clips": 13
+  },
+  {
+    "name": "Burmese",
+    "clips": 4
+  },
+  {
+    "name": "Cantonese",
+    "clips": 15
+  },
+  {
+    "name": "Catalan",
+    "clips": 14
+  },
+  {
+    "name": "Cebuano",
+    "clips": 2
+  },
+  {
+    "name": "Centish",
+    "clips": 7
+  },
+  {
+    "name": "Chechen",
+    "clips": 15
+  },
+  {
+    "name": "Chuvash",
+    "clips": 6
+  },
+  {
+    "name": "Cornish",
+    "clips": 6
+  },
+  {
+    "name": "Corsican",
+    "clips": 3
+  },
+  {
+    "name": "Crimean Tatar",
+    "clips": 6
+  },
+  {
+    "name": "Croatian",
+    "clips": 8
+  },
+  {
+    "name": "Czech",
+    "clips": 11
+  },
+  {
+    "name": "Danish",
+    "clips": 12
+  },
+  {
+    "name": "Dothraki",
+    "clips": 2
+  },
+  {
+    "name": "Dusun",
+    "clips": 4
+  },
+  {
+    "name": "Dutch",
+    "clips": 7
+  },
+  {
+    "name": "English",
+    "clips": 6
+  },
+  {
+    "name": "Esperanto",
+    "clips": 3
+  },
+  {
+    "name": "Estonian",
+    "clips": 17
+  },
+  {
+    "name": "Faroese",
+    "clips": 20
+  },
+  {
+    "name": "Farsi",
+    "clips": 17
+  },
+  {
+    "name": "Finnish",
+    "clips": 10
+  },
+  {
+    "name": "Flemish",
+    "clips": 6
+  },
+  {
+    "name": "French",
+    "clips": 23
+  },
+  {
+    "name": "Frisian",
+    "clips": 4
+  },
+  {
+    "name": "Friulian",
+    "clips": 2
+  },
+  {
+    "name": "Fuzhounese",
+    "clips": 9
+  },
+  {
+    "name": "Gagauz",
+    "clips": 9
+  },
+  {
+    "name": "Galician",
+    "clips": 11
+  },
+  {
+    "name": "Gallo",
+    "clips": 1
+  },
+  {
+    "name": "Georgian",
+    "clips": 11
+  },
+  {
+    "name": "German",
+    "clips": 15
+  },
+  {
+    "name": "Greenlandic",
+    "clips": 7
+  },
+  {
+    "name": "Guarani",
+    "clips": 10
+  },
+  {
+    "name": "Hainanese",
+    "clips": 8
+  },
+  {
+    "name": "Hakka",
+    "clips": 11
+  },
+  {
+    "name": "Hausa",
+    "clips": 10
+  },
+  {
+    "name": "Hawaiian",
+    "clips": 8
+  },
+  {
+    "name": "Hebrew",
+    "clips": 9
+  },
+  {
+    "name": "Hindi",
+    "clips": 7
+  },
+  {
+    "name": "Hungarian",
+    "clips": 9
+  },
+  {
+    "name": "Icelandic",
+    "clips": 10
+  },
+  {
+    "name": "Igbo",
+    "clips": 5
+  },
+  {
+    "name": "Ilocano",
+    "clips": 6
+  },
+  {
+    "name": "Indonesian",
+    "clips": 7
+  },
+  {
+    "name": "Irish",
+    "clips": 14
+  },
+  {
+    "name": "Italian",
+    "clips": 15
+  },
+  {
+    "name": "Japanese",
+    "clips": 10
+  },
+  {
+    "name": "Javanese",
+    "clips": 1
+  },
+  {
+    "name": "Kannada",
+    "clips": 11
+  },
+  {
+    "name": "Karachay-Balkar",
+    "clips": 2
+  },
+  {
+    "name": "Kazakh",
+    "clips": 17
+  },
+  {
+    "name": "Khmer",
+    "clips": 1
+  },
+  {
+    "name": "Korean",
+    "clips": 11
+  },
+  {
+    "name": "Kurdish",
+    "clips": 5
+  },
+  {
+    "name": "Kyrgyz",
+    "clips": 11
+  },
+  {
+    "name": "Lao",
+    "clips": 10
+  },
+  {
+    "name": "Latin",
+    "clips": 3
+  },
+  {
+    "name": "Latvian",
+    "clips": 15
+  },
+  {
+    "name": "Lebanese",
+    "clips": 9
+  },
+  {
+    "name": "Ligurian",
+    "clips": 2
+  },
+  {
+    "name": "Lithuanian",
+    "clips": 12
+  },
+  {
+    "name": "Luxembourgish",
+    "clips": 5
+  },
+  {
+    "name": "Malay",
+    "clips": 10
+  },
+  {
+    "name": "Malayalam",
+    "clips": 10
+  },
+  {
+    "name": "Maltese",
+    "clips": 17
+  },
+  {
+    "name": "Mandarin",
+    "clips": 13
+  },
+  {
+    "name": "Marathi",
+    "clips": 3
+  },
+  {
+    "name": "Miyakoan",
+    "clips": 2
+  },
+  {
+    "name": "Modern Greek",
+    "clips": 15
+  },
+  {
+    "name": "Mongolian",
+    "clips": 6
+  },
+  {
+    "name": "Morse Code",
+    "clips": 2
+  },
+  {
+    "name": "Nahuatl",
+    "clips": 11
+  },
+  {
+    "name": "Navajo",
+    "clips": 11
+  },
+  {
+    "name": "Ndebele",
+    "clips": 7
+  },
+  {
+    "name": "Neapolitan",
+    "clips": 2
+  },
+  {
+    "name": "Nepali",
+    "clips": 4
+  },
+  {
+    "name": "Nogai",
+    "clips": 4
+  },
+  {
+    "name": "Norwegian",
+    "clips": 14
+  },
+  {
+    "name": "Occitan",
+    "clips": 11
+  },
+  {
+    "name": "Okinawan",
+    "clips": 2
+  },
+  {
+    "name": "Old Norse",
+    "clips": 11
+  },
+  {
+    "name": "Old Turkic",
+    "clips": 2
+  },
+  {
+    "name": "Ossetian",
+    "clips": 10
+  },
+  {
+    "name": "Ottoman Turkish",
+    "clips": 2
+  },
+  {
+    "name": "Papiamentu",
+    "clips": 2
+  },
+  {
+    "name": "Penan",
+    "clips": 4
+  },
+  {
+    "name": "Polish",
+    "clips": 17
+  },
+  {
+    "name": "Portuguese",
+    "clips": 15
+  },
+  {
+    "name": "Proto-Indo-European",
+    "clips": 4
+  },
+  {
+    "name": "Proto-Slavic",
+    "clips": 4
+  },
+  {
+    "name": "Proto-Turkic",
+    "clips": 3
+  },
+  {
+    "name": "Punjabi",
+    "clips": 10
+  },
+  {
+    "name": "Quechua",
+    "clips": 10
+  },
+  {
+    "name": "Romanian",
+    "clips": 14
+  },
+  {
+    "name": "Romansh",
+    "clips": 10
+  },
+  {
+    "name": "Russian",
+    "clips": 12
+  },
+  {
+    "name": "Sami",
+    "clips": 13
+  },
+  {
+    "name": "Samoan",
+    "clips": 10
+  },
+  {
+    "name": "Sanskrit",
+    "clips": 4
+  },
+  {
+    "name": "Sardinian",
+    "clips": 2
+  },
+  {
+    "name": "Scottish Gaelic",
+    "clips": 11
+  },
+  {
+    "name": "Serbian",
+    "clips": 12
+  },
+  {
+    "name": "Shanghainese",
+    "clips": 7
+  },
+  {
+    "name": "Shona",
+    "clips": 3
+  },
+  {
+    "name": "Sichuanese",
+    "clips": 9
+  },
+  {
+    "name": "Sicilian",
+    "clips": 5
+  },
+  {
+    "name": "Sign Language",
+    "clips": 1
+  },
+  {
+    "name": "Silbo Gomero",
+    "clips": 1
+  },
+  {
+    "name": "Silesian",
+    "clips": 2
+  },
+  {
+    "name": "Sinhala",
+    "clips": 2
+  },
+  {
+    "name": "Slovak",
+    "clips": 5
+  },
+  {
+    "name": "Slovenian",
+    "clips": 4
+  },
+  {
+    "name": "Spanish",
+    "clips": 15
+  },
+  {
+    "name": "Sundanese",
+    "clips": 1
+  },
+  {
+    "name": "Swabian",
+    "clips": 10
+  },
+  {
+    "name": "Swahili",
+    "clips": 11
+  },
+  {
+    "name": "Swedish",
+    "clips": 13
+  },
+  {
+    "name": "Tagalog",
+    "clips": 13
+  },
+  {
+    "name": "Taishanese",
+    "clips": 2
+  },
+  {
+    "name": "Taiwanese",
+    "clips": 4
+  },
+  {
+    "name": "Tamazight",
+    "clips": 15
+  },
+  {
+    "name": "Tamil",
+    "clips": 11
+  },
+  {
+    "name": "Tatar",
+    "clips": 10
+  },
+  {
+    "name": "Telugu",
+    "clips": 10
+  },
+  {
+    "name": "Teochew",
+    "clips": 3
+  },
+  {
+    "name": "Thai",
+    "clips": 12
+  },
+  {
+    "name": "Tibetan",
+    "clips": 8
+  },
+  {
+    "name": "Tigrinya",
+    "clips": 10
+  },
+  {
+    "name": "Tongan",
+    "clips": 3
+  },
+  {
+    "name": "Tupi",
+    "clips": 10
+  },
+  {
+    "name": "Turkish",
+    "clips": 20
+  },
+  {
+    "name": "Turkmen",
+    "clips": 7
+  },
+  {
+    "name": "Tuvan",
+    "clips": 14
+  },
+  {
+    "name": "Ukrainian",
+    "clips": 13
+  },
+  {
+    "name": "Urdu",
+    "clips": 2
+  },
+  {
+    "name": "Uyghur",
+    "clips": 15
+  },
+  {
+    "name": "Uzbek",
+    "clips": 15
+  },
+  {
+    "name": "Vietnamese",
+    "clips": 14
+  },
+  {
+    "name": "Welsh",
+    "clips": 11
+  },
+  {
+    "name": "Wenzhounese",
+    "clips": 11
+  },
+  {
+    "name": "Wolof",
+    "clips": 11
+  },
+  {
+    "name": "Xhosa",
+    "clips": 12
+  },
+  {
+    "name": "Yakut",
+    "clips": 5
+  },
+  {
+    "name": "Yiddish",
+    "clips": 11
+  },
+  {
+    "name": "Yoruba",
+    "clips": 5
+  },
+  {
+    "name": "Zulu",
+    "clips": 11
+  }
 ]

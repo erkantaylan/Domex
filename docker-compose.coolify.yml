@@ -1,0 +1,42 @@
+# The whole stack for Coolify. Every setting comes from Coolify's environment
+# variables, not from a .env file. BOT_IMAGE is the private image with the audio.
+services:
+  bot:
+    image: ${BOT_IMAGE:?Set BOT_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?Set DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?Set DISCORD_CLIENT_ID}
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:?Set DISCORD_GUILD_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # The password goes inside a URL here, so use only letters and digits.
+      DATABASE_URL: postgres://jungle:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/jungle
+      # Coolify's proxy reaches the website from outside the container.
+      HOST: 0.0.0.0
+    expose:
+      - "3100"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jungle
+      POSTGRES_DB: jungle
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    # No ports here: only the bot can reach the database.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jungle -d jungle"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
