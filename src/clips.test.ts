@@ -18,7 +18,7 @@ const upload = (language: string, name: string, body: Uint8Array, withCookie = c
   fetch(`${base}/api/admin/clips?language=${encodeURIComponent(language)}&name=${encodeURIComponent(name)}`, {
     method: "POST",
     headers: { origin: base, cookie: withCookie },
-    body,
+    body: body as BodyInit,
   });
 
 beforeAll(async () => {
