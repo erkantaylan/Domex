@@ -53,3 +53,11 @@ export const guesses = pgTable("guesses", {
   correct: boolean("correct").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// A website login. The id itself lives only in the player's cookie: a stolen copy of this table can't log anyone in.
+export const sessions = pgTable("sessions", {
+  idHash: text("id_hash").primaryKey(),
+  userId: text("user_id").notNull(),
+  displayName: text("display_name").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
