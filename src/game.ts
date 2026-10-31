@@ -4,6 +4,7 @@ import { clips, games, guesses, languages, rounds } from "./db/schema";
 
 const ROUNDS_PER_GAME = 3;
 const SECONDS_AFTER_CLIP = 30;
+const SECONDS_BEFORE_ROUND = 5;
 
 // What the game needs from Discord. Keeping it separate lets tests run a game without Discord.
 export type GameTable = {
@@ -17,6 +18,7 @@ export type GameTable = {
   stopAudio: () => void;
   leave: () => void;
   answerWindowMs?: number;
+  countdownMs?: number;
 };
 
 type RoundOutcome = "correct" | "timeout" | "stopped";
@@ -29,6 +31,8 @@ type Game = {
   scores: Map<string, number>;
   round: OpenRound | null;
   stopped: boolean;
+  // Ends the countdown early. Only set during a countdown.
+  endCountdown: (() => void) | null;
 };
 
 // At most one game per server. Everything that should last is in the database.
@@ -67,7 +71,7 @@ export async function startGame(table: GameTable) {
   if (activeGames.has(table.guildId)) throw new Error("A game is already running");
 
   // Hold the server's place right away, so a second /game start can't slip in.
-  const game: Game = { id: 0, table, scores: new Map(), round: null, stopped: false };
+  const game: Game = { id: 0, table, scores: new Map(), round: null, stopped: false, endCountdown: null };
   activeGames.set(table.guildId, game);
 
   try {
@@ -132,10 +136,18 @@ async function playRound(
   total: number,
 ) {
   const { table } = game;
+
+  // One message and a wait, not one per second: that would spam the chat and hit Discord's rate limits.
+  // The round isn't open yet, so answers during this wait don't count.
+  await table.say(`Round ${number} of ${total} starts in ${SECONDS_BEFORE_ROUND} seconds...`);
+  await countdown(game, table.countdownMs ?? SECONDS_BEFORE_ROUND * 1000);
+  // A stopped game never reaches the database or the clip for this round.
+  if (game.stopped) return;
+
   const [row] = await db.insert(rounds).values({ gameId: game.id, clipId: clip.id, number }).returning({ id: rounds.id });
   if (!row) throw new Error("Couldn't save the round");
 
-  await table.say(`Round ${number} of ${total}. Listen!`);
+  await table.say("Listen!");
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const outcome = await new Promise<RoundOutcome>((resolve, reject) => {
@@ -159,6 +171,20 @@ async function playRound(
 
   await db.update(rounds).set({ endedAt: new Date() }).where(eq(rounds.id, row.id));
   if (outcome === "timeout") await table.say(`Time's up! It was ${clip.language}.`);
+}
+
+// Waits out the countdown, or until the game is stopped.
+function countdown(game: Game, ms: number) {
+  return new Promise<void>((resolve) => {
+    if (game.stopped) return resolve();
+    const timer = setTimeout(end, ms);
+    function end() {
+      clearTimeout(timer);
+      game.endCountdown = null;
+      resolve();
+    }
+    game.endCountdown = end;
+  });
 }
 
 function scoreboard(game: Game) {
@@ -193,6 +219,7 @@ export function stopGame(guildId: string) {
   if (!game) return false;
   game.stopped = true;
   game.round?.finish("stopped");
+  game.endCountdown?.();
   return true;
 }
 
