@@ -3,6 +3,7 @@
 .git
 .idea
 node_modules
+assets
 docker-compose*.yml
 Dockerfile
 *.test.ts

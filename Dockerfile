@@ -10,12 +10,13 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
-# assets/ holds the audio, so this image must stay private.
 COPY tsconfig.json ./
 COPY drizzle ./drizzle
 COPY scripts ./scripts
 COPY src ./src
-COPY assets ./assets
+
+# The audio isn't in the image. This folder is where the server's clips volume goes.
+RUN mkdir -p assets && chown bun:bun assets
 
 USER bun
 

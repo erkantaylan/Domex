@@ -1,9 +1,12 @@
-# The whole stack for Coolify. Every setting comes from Coolify's environment
-# variables, not from a .env file. BOT_IMAGE is the private image with the audio.
+# The whole stack for Coolify, built from this repo. Every setting comes from
+# Coolify's environment variables, not from a .env file. The audio isn't in the
+# repo: it stays on the server in the clips volume.
 services:
   bot:
-    image: ${BOT_IMAGE:?Set BOT_IMAGE}
+    build: .
     restart: unless-stopped
+    volumes:
+      - clips:/app/assets
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,3 +43,4 @@ services:
 
 volumes:
   pgdata:
+  clips:
