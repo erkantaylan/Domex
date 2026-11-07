@@ -15,20 +15,22 @@ Goal: an agent can do admin work over the dashboard's API, using a token the adm
 ### Rules
 
 - The admin creates tokens on the dashboard. There can be several at once.
-- A new token is shown once, hidden behind dots, with a Copy button. It's never readable on screen.
+- A new token is shown once, hidden behind dots, with a Copy button.
 - The database keeps only a hash of each token, never the token itself.
-- A token can do everything the admin can, except create or revoke tokens. Only the password login can do that.
-- Tokens expire after 7 days. The admin can revoke one earlier.
-- Every change made with a token goes in the log, with the token's name.
-- An agent keeps the token in a local file that git ignores, and never prints it.
+- A token works only on the admin API (`/api/admin/...`): settings, logs and clips. It can't send messages as the bot or use voice, and it can't create or revoke tokens. Only the password login can do those.
+- Tokens expire after 7 days. The admin can revoke one earlier. A revoked token stays in the list, marked as revoked.
+- Every change made with a token goes in the dashboard's log, with the token's name.
+- In class, the teacher pastes the token into the agent's chat, on the shared screen. That's fine for this lesson.
 
 ### Steps
 
 1. Add an `admin_tokens` table: name, token hash, created, last used, expires, revoked.
-2. Add a "Tokens" section to the dashboard: create a token with a name, see the list, and revoke one.
-3. Let the admin API accept `Authorization: Bearer <token>` as well as the login cookie. Refuse expired, revoked and unknown tokens. Update "last used" on each request.
-4. Make sure the token routes only work with the login cookie, never with a token.
-5. Test it end to end: create a token on the dashboard, save it locally off-screen, and have an agent read the clip list with it.
+2. Put every "is this the admin?" check in one place. It accepts the login cookie or `Authorization: Bearer <token>`, says which one it was, and knows which routes a token may use.
+3. Add a "Tokens" section to the dashboard: create a token with a name, see the list, and revoke one.
+4. Let the admin API accept tokens through that check. Refuse expired, revoked and unknown tokens. Update "last used" on each request.
+5. Make sure the token routes, sending messages and voice only work with the login cookie, never with a token.
+6. Write a log line for each change made with a token, with the token's name.
+7. Test it end to end: create a token on the dashboard, paste it to the agent, and have the agent read the clip list with it.
 
 ## Part 2: managing languages and clips
 
@@ -91,7 +93,7 @@ Goal: the bot, the website and the game rules live in separate places, with clea
 1. Move the game rules, database, clips and settings into `core/`. Run the tests.
 2. Move the Discord code into `bot/`. Run the tests.
 3. Split `chat-page.ts`: the chat log, the web server and its routes go into `server/`, grouped by topic (voice, chat, languages, admin).
-4. Put every "is this the admin?" check in one place that accepts the login or a token, and keep the list of admin-only routes in one place.
+4. Keep the list of admin-only routes in one place, next to the single admin check from Part 1.
 5. Turn the bot actions the website uses (send a message, join voice, play a clip) into one interface between `bot/` and `server/`.
 6. Add a check that fails when a file imports across the rules above.
 7. Move the pages out of strings into real files under `web/`, with one shared stylesheet.
