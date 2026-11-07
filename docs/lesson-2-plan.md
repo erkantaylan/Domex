@@ -1,0 +1,85 @@
+# Lesson 2 plan: admin tokens and easy mode
+
+The two things we build in class tonight, in order. Each step is small enough to build, test and commit on its own.
+
+## Where we start
+
+- The bot runs on the server with 1,395 clips in 167 languages, and `/game start` plays a three-round game in voice.
+- The dashboard has an admin login (username and password from the server settings), game timings, clip upload and the recent log.
+- Normal mode is the game as it is today: players type the language in the chat.
+
+## Part 1: admin tokens
+
+Goal: an agent can do admin work over the dashboard's API, using a token the admin made on the dashboard.
+
+### Rules
+
+- The admin creates tokens on the dashboard. There can be several at once.
+- A new token is shown once, hidden behind dots, with a Copy button. It's never readable on screen.
+- The database keeps only a hash of each token, never the token itself.
+- A token can do everything the admin can, except create or revoke tokens. Only the password login can do that.
+- Tokens expire after 7 days. The admin can revoke one earlier.
+- Every change made with a token goes in the log, with the token's name.
+- An agent keeps the token in a local file that git ignores, and never prints it.
+
+### Steps
+
+1. Add an `admin_tokens` table: name, token hash, created, last used, expires, revoked.
+2. Add a "Tokens" section to the dashboard: create a token with a name, see the list, and revoke one.
+3. Let the admin API accept `Authorization: Bearer <token>` as well as the login cookie. Refuse expired, revoked and unknown tokens. Update "last used" on each request.
+4. Make sure the token routes only work with the login cookie, never with a token.
+5. Test it end to end: create a token on the dashboard, save it locally off-screen, and have an agent read the clip list with it.
+
+## Part 2: managing languages and clips
+
+Goal: with a token, an agent can tidy up the clip list without breaking past games.
+
+### Rules
+
+- Nothing is really deleted. Hiding a language or a clip means games skip it, but past games keep it.
+- Audio files stay on the server, even for hidden clips.
+- Renaming a language keeps its history, since past rounds point to it, not to its name.
+
+### Steps
+
+1. Add a `hidden` flag to `languages` and `clips`. Games only pick clips that aren't hidden, from languages that aren't hidden.
+2. Add admin API routes to list languages with their clip counts, rename a language, hide or show a language, hide or show a clip, and move a clip to another language.
+3. Have an agent use the token to try each route, and check on the dashboard that games still start.
+
+## Part 3: easy mode
+
+Goal: `/game start difficulty:easy` plays the game with five buttons instead of typing.
+
+### Rules
+
+- `/game start` gets a difficulty option: easy or normal. Normal is the default.
+- Each easy round shows 5 buttons: the right language and 4 random wrong ones. Smarter wrong options can come later, from the mix-up data.
+- The player list is fixed when `/game start` runs: the people in the voice channel, not counting bots. It stays the same for the whole game.
+- A click counts only if the player is on that list and is in the voice channel when they click. A player who leaves and comes back can play again.
+- Anyone else who clicks gets a private note: "Only players who were in voice when the game started can answer."
+- One click per player per round. "You picked X" is shown only to the player who clicked.
+- Typing doesn't count in easy mode.
+- While a round runs, the message shows how many have picked, like "4/6 picked". The total doesn't change when someone leaves.
+- The round ends when everyone on the list has picked or the timer runs out. Then the buttons switch off and the right answer is shown.
+- Easy and normal scores are kept apart, so leaderboards can be split by difficulty later.
+
+### Steps
+
+1. Add a difficulty to `games`, and a place to save the 5 options shown in each easy round.
+2. Add the `difficulty` option to `/game start` and fix the player list at the start.
+3. Play an easy round: post the 5 buttons, take one click per player, reply privately, and update the "picked" count.
+4. End the round on "everyone picked" or the timer, switch off the buttons and show the answer.
+5. Save each click as a guess, like typed guesses, and keep the end-of-game scoreboard separate per difficulty.
+6. Play a full easy game with the class in voice.
+
+## Survey ideas
+
+- What should the bot say when someone picks the right answer?
+- Should easy mode also have a "hard" sibling later, and what would make it hard?
+- Which part should we build first tonight: tokens or easy mode?
+
+## Not tonight
+
+- Smarter wrong options from the mix-up data.
+- Leaderboards (lesson 5), apart from saving the difficulty so they can be split later.
+- Teams and the button lobby (lesson 3).
