@@ -1,6 +1,6 @@
-# Lesson 2 plan: admin tokens and easy mode
+# Lesson 2 plan: admin tokens, easy mode and tidier code
 
-The two things we build in class tonight, in order. Each step is small enough to build, test and commit on its own.
+The things we build in class tonight, in order. Each step is small enough to build, test and commit on its own.
 
 ## Where we start
 
@@ -71,6 +71,35 @@ Goal: `/game start difficulty:easy` plays the game with five buttons instead of 
 4. End the round on "everyone picked" or the timer, switch off the buttons and show the answer.
 5. Save each click as a guess, like typed guesses, and keep the end-of-game scoreboard separate per difficulty.
 6. Play a full easy game with the class in voice.
+
+## Part 4: tidy the code into layers
+
+Goal: the bot, the website and the game rules live in separate places, with clear rules about who uses whom. Nothing changes for players. The tests pass at every step.
+
+### Rules
+
+- It stays one program, so the bot and the website keep sharing memory: the chat log, recent logs, running games and the voice connection.
+- `core/` holds the game rules, database, clips and settings. It knows nothing about Discord or the web.
+- `bot/` holds the Discord client, slash commands, voice and buttons.
+- `server/` holds the web routes, login, tokens and the admin API.
+- `web/` holds the pages: HTML, CSS and browser code.
+- `bot/` and `server/` both use `core/`, but never each other. They talk through one interface that the program sets up at start.
+- `web/` only shares types with the rest.
+
+### Steps
+
+1. Move the game rules, database, clips and settings into `core/`. Run the tests.
+2. Move the Discord code into `bot/`. Run the tests.
+3. Split `chat-page.ts`: the chat log, the web server and its routes go into `server/`, grouped by topic (voice, chat, languages, admin).
+4. Put every "is this the admin?" check in one place that accepts the login or a token, and keep the list of admin-only routes in one place.
+5. Turn the bot actions the website uses (send a message, join voice, play a clip) into one interface between `bot/` and `server/`.
+6. Add a check that fails when a file imports across the rules above.
+7. Move the pages out of strings into real files under `web/`, with one shared stylesheet.
+
+### For the class to decide
+
+- Pages as plain TypeScript bundled by Bun, or a frontend framework. A framework starts to pay off around the stats and leaderboards lesson.
+- Whether the dashboard keeps choosing between the login page and the dashboard on the server, or the page asks the API and shows the login form itself.
 
 ## Survey ideas
 
