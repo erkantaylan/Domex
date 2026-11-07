@@ -78,3 +78,15 @@ export const gameSettings = pgTable(
   },
   (table) => [check("game_settings_single_row", sql`${table.id} = 1`)],
 );
+
+// A key the admin makes on the dashboard so an agent can use the admin API.
+// Only the hash is kept: the token itself is shown once, when it's made.
+export const adminTokens = pgTable("admin_tokens", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
