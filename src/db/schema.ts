@@ -16,6 +16,8 @@ export const clips = pgTable("clips", {
 });
 
 export const gameStatus = pgEnum("game_status", ["running", "finished", "stopped", "failed"]);
+// Easy mode answers with buttons, normal mode by typing. Kept on the game so leaderboards can be split by it.
+export const difficulty = pgEnum("difficulty", ["easy", "normal"]);
 
 export const games = pgTable("games", {
   id: serial("id").primaryKey(),
@@ -23,6 +25,7 @@ export const games = pgTable("games", {
   channelId: text("channel_id").notNull(),
   startedBy: text("started_by").notNull(),
   status: gameStatus("status").notNull().default("running"),
+  difficulty: difficulty("difficulty").notNull().default("normal"),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
@@ -38,6 +41,9 @@ export const rounds = pgTable(
       .notNull()
       .references(() => clips.id),
     number: integer("number").notNull(),
+    // The 5 buttons of an easy round, in the order shown. Null in normal mode.
+    // A column, not a table: the options are always read with their round, never on their own.
+    options: text("options").array(),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
   },
