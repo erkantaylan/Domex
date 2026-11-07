@@ -1,6 +1,6 @@
 import type { Message } from "discord.js";
 import allLanguages from "./all-languages.json";
-import { handleAdminRequest, isAdminRequest } from "./admin";
+import { adminOf, handleAdminRequest } from "./admin";
 import { handleAuthRequest } from "./auth";
 
 type ChatLine = { id: string; channel: string; author: string; text: string; time: number };
@@ -442,7 +442,11 @@ export function startChatPage(port: number, actions: ChatActions) {
     async fetch(request) {
       const { pathname } = new URL(request.url);
 
-      if (request.method === "POST" && !isFromOurPage(request)) {
+      // Agents with an admin token send no Origin, so a POST with an Authorization header may skip
+      // this check. That's safe: adminOf ignores the cookie whenever that header is there, and
+      // another site can't add the header without our CORS approval, which we never give.
+      const hasToken = request.headers.has("authorization");
+      if (request.method === "POST" && !hasToken && !isFromOurPage(request)) {
         return new Response("Forbidden", { status: 403 });
       }
 
@@ -453,14 +457,14 @@ export function startChatPage(port: number, actions: ChatActions) {
       if (authResponse) return authResponse;
 
       if (pathname === "/dashboard/testing" && request.method === "GET") {
-        if (!isAdminRequest(request)) return new Response(null, { status: 302, headers: { location: "/dashboard" } });
+        if (!(await adminOf(request))) return new Response(null, { status: 302, headers: { location: "/dashboard" } });
         return new Response(testingPage, {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
         });
       }
 
       // Reading the chats, posting as the bot and moving it in voice are for the admin only.
-      if (ADMIN_ONLY_PATHS.has(pathname) && !isAdminRequest(request)) {
+      if (ADMIN_ONLY_PATHS.has(pathname) && !(await adminOf(request))) {
         return Response.json({ error: "Not logged in" }, { status: 401 });
       }
 

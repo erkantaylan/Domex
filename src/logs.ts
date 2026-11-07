@@ -17,6 +17,8 @@ export function redact(text: string) {
   }
   return clean
     .replace(/[A-Za-z0-9_-]{23,}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g, "[hidden]")
+    // Admin tokens: "lj_" and 43 base64url characters.
+    .replace(/lj_[A-Za-z0-9_-]{43}/g, "[hidden]")
     .replace(/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+@/g, "$1[hidden]@");
 }
 
