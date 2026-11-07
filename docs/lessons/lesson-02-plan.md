@@ -32,21 +32,15 @@ Goal: an agent can do admin work over the dashboard's API, using a token the adm
 6. Write a log line for each change made with a token, with the token's name.
 7. Test it end to end: create a token on the dashboard, paste it to the agent, and have the agent read the clip list with it.
 
-## Part 2: managing languages and clips
+## Part 2: the bot marks each guess
 
-Goal: with a token, an agent can tidy up the clip list without breaking past games.
+Goal: players can see the bot read their typed guess.
 
 ### Rules
 
-- Nothing is really deleted. Hiding a language or a clip means games skip it, but past games keep it.
-- Audio files stay on the server, even for hidden clips.
-- Renaming a language keeps its history, since past rounds point to it, not to its name.
-
-### Steps
-
-1. Add a `hidden` flag to `languages` and `clips`. Games only pick clips that aren't hidden, from languages that aren't hidden.
-2. Add admin API routes to list languages with their clip counts, rename a language, hide or show a language, hide or show a clip, and move a clip to another language.
-3. Have an agent use the token to try each route, and check on the dashboard that games still start.
+- When the game counts a typed guess, the bot reacts to that message: ✅ if it's right, ❌ if it's wrong.
+- Messages that don't count as a guess get no reaction.
+- If the bot can't add the reaction, the game carries on as normal.
 
 ## Part 3: easy mode
 
@@ -112,5 +106,6 @@ Goal: the bot, the website and the game rules live in separate places, with clea
 ## Not tonight
 
 - Smarter wrong options from the mix-up data.
+- Managing languages and clips with a token: hiding, renaming and moving them.
 - Leaderboards (lesson 5), apart from saving the difficulty so they can be split later.
 - Teams and the button lobby (lesson 3).
