@@ -49,4 +49,6 @@ Lessons have been on Saturdays at 19:00 local time. Ask the teacher if the time 
 
 Each lesson has one file, `docs/announcements/lesson-NN.md`, with the date and Unix time at the top and one section per kind (`## Before class`, `## Class starts`). Add the new post to the right file, or start the file if it's a new lesson. Put each post in a fenced code block, exactly as it should be posted.
 
+If the post goes out with an image, save it as `docs/announcements/images/lesson-NN-<kind>.jpg`, show it under the post in the lesson file, and keep the prompt that made it next to it. Image prompts follow the same rules: garden theme, a small robot as the recurring character, no text in the image, and 16:9.
+
 Commit the file once the teacher is happy with the text.
