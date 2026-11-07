@@ -7,11 +7,13 @@ import {
   REST,
   Routes,
   SlashCommandBuilder,
+  type ButtonInteraction,
   type ChatInputCommandInteraction,
 } from "discord.js";
 import { runMigrations } from "./db";
 import { captureLogs } from "./logs";
-import { closeLeftoverGames, handleGuess, isGameRunning, startGame, stopGame } from "./game";
+import { closeLeftoverGames, handleEasyPick, handleGuess, isGameRunning, startGame, stopGame } from "./game";
+import { parseEasyButtonId, postEasyRound } from "./easy-buttons";
 import { addMessage, startChatPage } from "./chat-page";
 import { currentVoiceChannelId, joinVoice, leaveVoice, listVoiceChannels, playFile, playRandomClip, stopAudio } from "./voice";
 
@@ -29,7 +31,17 @@ const commands = [
   new SlashCommandBuilder()
     .setName("game")
     .setDescription("Play Language Jungle")
-    .addSubcommand((sub) => sub.setName("start").setDescription("Start a game in your voice channel"))
+    .addSubcommand((sub) =>
+      sub
+        .setName("start")
+        .setDescription("Start a game in your voice channel")
+        .addStringOption((option) =>
+          option
+            .setName("difficulty")
+            .setDescription("Easy: pick from 5 buttons. Normal: type the language.")
+            .addChoices({ name: "easy", value: "easy" }, { name: "normal", value: "normal" }),
+        ),
+    )
     .addSubcommand((sub) => sub.setName("stop").setDescription("Stop the current game")),
 ];
 
@@ -139,6 +151,14 @@ async function handleGameCommand(interaction: ChatInputCommandInteraction<"cache
     return;
   }
 
+  // Easy mode's player list is fixed now: the people in the voice channel, not counting bots.
+  const easy = interaction.options.getString("difficulty") === "easy";
+  const players = channel.members.filter((member) => !member.user.bot).map((member) => member.id);
+  if (easy && players.length === 0) {
+    await interaction.reply({ content: "Easy mode needs players in your voice channel.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
   // Joining voice can take longer than Discord's 3 seconds to answer a command.
   await interaction.deferReply();
   try {
@@ -151,15 +171,46 @@ async function handleGameCommand(interaction: ChatInputCommandInteraction<"cache
       play: (filePath) => playFile(guild, filePath),
       stopAudio,
       leave: () => leaveVoice(guild),
+      easy: easy
+        ? {
+            players,
+            inVoice: (userId) => guild.voiceStates.cache.get(userId)?.channelId === channel.id,
+            showOptions: (roundId, options, total) => postEasyRound(channel, roundId, options, total),
+          }
+        : undefined,
     });
-    await interaction.editReply(`Game on! Listen in <#${channel.id}> and type your answers in its chat.`);
+    await interaction.editReply(
+      easy
+        ? `Easy game on! Listen in <#${channel.id}> and pick from the buttons in its chat.`
+        : `Game on! Listen in <#${channel.id}> and type your answers in its chat.`,
+    );
   } catch (error) {
     console.error("Couldn't start a game:", error);
     await interaction.editReply("I couldn't start the game.");
   }
 }
 
+// A click on an easy round's button. The answer goes only to the player who clicked.
+async function handleEasyButton(interaction: ButtonInteraction<"cached">, roundId: number, index: number) {
+  let reply: string;
+  try {
+    reply = await handleEasyPick(interaction.guildId, roundId, index, interaction.user.id);
+  } catch (error) {
+    console.error("Couldn't handle a pick:", error);
+    reply = "Something went wrong with your pick.";
+  }
+  await interaction.reply({ content: reply, flags: MessageFlags.Ephemeral });
+}
+
 client.on(Events.InteractionCreate, async (interaction) => {
+  if (interaction.isButton() && interaction.inCachedGuild()) {
+    const pick = parseEasyButtonId(interaction.customId);
+    if (pick) {
+      await handleEasyButton(interaction, pick.roundId, pick.index).catch((error) =>
+        console.error("Easy button failed:", error),
+      );
+    }
+  }
   if (interaction.isChatInputCommand() && interaction.commandName === "ping") {
     await interaction.reply("Pong! I'm awake.");
   }
