@@ -226,8 +226,18 @@ function scoreboard(game: Game) {
   return ranked.map(([userId, score]) => `<@${userId}>: ${score}`).join(", ");
 }
 
+// Puts an emoji on the player's message, so they can see their guess was read.
+export type ReactToGuess = (emoji: string) => Promise<unknown>;
+
+// Fire and forget: the round never waits for the reaction, and a failed one (no permission, deleted message) is only logged.
+function reactTo(react: ReactToGuess, emoji: string) {
+  Promise.resolve()
+    .then(() => react(emoji))
+    .catch((error) => console.error(`Couldn't react to a guess: ${error instanceof Error ? error.message : "unknown error"}`));
+}
+
 // Called for every chat message. Only messages in the game's channel while answers are open count.
-export async function handleGuess(guildId: string, channelId: string, userId: string, text: string) {
+export async function handleGuess(guildId: string, channelId: string, userId: string, text: string, react?: ReactToGuess) {
   const game = activeGames.get(guildId);
   if (!game || game.table.channelId !== channelId) return;
   const round = game.round;
@@ -240,6 +250,8 @@ export async function handleGuess(guildId: string, channelId: string, userId: st
   try {
     if (correct) game.scores.set(userId, (game.scores.get(userId) ?? 0) + 1);
     await db.insert(guesses).values({ roundId: round.id, userId, text, correct });
+    // Only a guess that counted and was saved gets a reaction.
+    if (react) reactTo(react, correct ? "✅" : "❌");
     if (correct) await game.table.say(`<@${userId}> got it! It was ${round.language}.`);
   } finally {
     // Even if saving or announcing fails, the game has to move on.

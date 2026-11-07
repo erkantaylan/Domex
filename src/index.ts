@@ -106,7 +106,8 @@ client.once(Events.ClientReady, async (ready) => {
 client.on(Events.MessageCreate, (message) => {
   addMessage(message);
   if (!message.guildId || message.author.bot) return;
-  handleGuess(message.guildId, message.channelId, message.author.id, message.content).catch((error) =>
+  const react = (emoji: string) => message.react(emoji);
+  handleGuess(message.guildId, message.channelId, message.author.id, message.content, react).catch((error) =>
     console.error("Couldn't handle a guess:", error),
   );
 });

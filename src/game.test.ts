@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, expect, spyOn, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db, runMigrations } from "./db";
 import { clips, gameSettings, games, guesses, languages, rounds } from "./db/schema";
@@ -454,3 +454,66 @@ for (const { name, settings, clipEnded } of stopCases) {
     expect(await finalStatus(id)).toBe("stopped");
   });
 }
+
+test("the bot reacts to guesses that count: a tick when right, a cross when wrong, nothing otherwise", async () => {
+  const reactions: string[] = [];
+  const reactAs = (who: string) => async (emoji: string) => reactions.push(`${who} ${emoji}`);
+
+  await handleGuess(GUILD, CHANNEL, "no-game", "anything", reactAs("no-game"));
+
+  const { table, said, clip } = longClipTable();
+  const id = await startWith({ answersOpen: "after" }, table);
+  await until(() => clip.played.length === 1);
+  const language = await languageOf(clip.played[0]!);
+
+  await handleGuess(GUILD, "other-channel", "elsewhere", language, reactAs("elsewhere"));
+  await handleGuess(GUILD, CHANNEL, "too-early", language, reactAs("too-early"));
+
+  clip.end();
+  await until(() => announcements(said).length === 1);
+  await handleGuess(GUILD, CHANNEL, "wrong", "not a language", reactAs("wrong"));
+  // A long countdown before round 2, so the round stays over while the late guess comes in.
+  table.countdownMs = 60_000;
+  await handleGuess(GUILD, CHANNEL, "right", language, reactAs("right"));
+  await handleGuess(GUILD, CHANNEL, "late", language, reactAs("late"));
+
+  await until(() => reactions.length === 2);
+  await Bun.sleep(20);
+  expect(reactions).toEqual(["wrong ❌", "right ✅"]);
+  expect(await savedGuesses(id)).toEqual([
+    { userId: "wrong", correct: false },
+    { userId: "right", correct: true },
+  ]);
+});
+
+test("a reaction that fails or hangs doesn't hold up or break the round", async () => {
+  const logged = spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const { table, said, clip } = longClipTable();
+    const id = await startWith({}, table);
+    await until(() => clip.played.length === 1);
+
+    await handleGuess(GUILD, CHANNEL, "throws", "secret words one", () => {
+      throw new Error("Missing Permissions");
+    });
+    await handleGuess(GUILD, CHANNEL, "rejects", "secret words two", () => Promise.reject(new Error("Unknown Message")));
+    // Never settles: the round must not wait for it.
+    await handleGuess(GUILD, CHANNEL, "right", await languageOf(clip.played[0]!), () => new Promise(() => {}));
+
+    expect(said).toContainEqual(expect.stringContaining("<@right> got it!"));
+    expect(clip.cutOff).toBe(1);
+    await until(() => clip.played.length === 2);
+    expect(await savedGuesses(id)).toEqual([
+      { userId: "throws", correct: false },
+      { userId: "rejects", correct: false },
+      { userId: "right", correct: true },
+    ]);
+
+    const lines = logged.mock.calls.map((args) => args.join(" "));
+    expect(lines).toContain("Couldn't react to a guess: Missing Permissions");
+    expect(lines).toContain("Couldn't react to a guess: Unknown Message");
+    expect(lines.some((line) => line.includes("secret words"))).toBe(false);
+  } finally {
+    logged.mockRestore();
+  }
+});
