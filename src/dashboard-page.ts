@@ -28,7 +28,7 @@ const head = (title: string) => `<!doctype html>
   #summary { padding: 12px 0; border-top: 1px solid var(--line); }
   #status { margin: 8px 0 0; color: var(--accent); font-weight: 600; }
   #error { margin: 8px 0 0; color: var(--error); }
-  #logsSection, #uploadSection { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+  #logsSection, #uploadSection, #tokensSection { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
   #clipFolder { width: 100%; box-sizing: border-box; margin-top: 8px; }
   #uploadStatus { margin: 8px 0 0; font-weight: 600; overflow-wrap: anywhere; }
   h2 { font-size: 1.1rem; margin: 0 0 4px; }
@@ -38,6 +38,18 @@ const head = (title: string) => `<!doctype html>
   .log { padding: 6px 0; border-top: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
   .log.bad { color: var(--error); }
   .log time { display: block; color: var(--muted); }
+  #tokenForm { display: flex; gap: 8px; margin-top: 8px; }
+  #tokenName { flex: 1; min-width: 0; }
+  #newToken { margin-top: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  #newToken > div { display: flex; gap: 8px; margin-top: 4px; }
+  #newTokenValue { flex: 1; min-width: 0; }
+  #copyStatus { margin: 8px 0 0; color: var(--accent); font-weight: 600; }
+  #copyStatus:empty, #tokenError:empty { display: none; }
+  #tokenError { margin: 8px 0 0; color: var(--error); }
+  #tokenList { margin-top: 12px; }
+  .token { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .token > div { min-width: 0; overflow-wrap: anywhere; }
+  .token strong { display: block; }
 </style>
 <p class="source"><a href="https://github.com/erkantaylan/Domex" target="_blank" rel="noopener">GitHub</a></p>
 `;
@@ -122,6 +134,24 @@ export const dashboardPage = `${head("Dashboard")}<div id="top">
   <p class="hint">Pick a folder that has one folder per language, with MP3 files inside. Clips already on the server are skipped, so you can run it again if it stops. Keep this page open while it runs.</p>
   <input id="clipFolder" type="file" webkitdirectory multiple aria-label="Clips folder">
   <p id="uploadStatus" role="status"></p>
+</section>
+<section id="tokensSection">
+  <h2>Tokens</h2>
+  <p class="hint">A token lets an agent use the admin API for 7 days: game timings, the log and clips. It can't make tokens, post as the bot or use voice.</p>
+  <form id="tokenForm" novalidate>
+    <input id="tokenName" maxlength="40" autocomplete="off" placeholder="Name, like my laptop agent" aria-label="Token name">
+    <button id="makeToken">Make a token</button>
+  </form>
+  <p id="tokenError" role="alert"></p>
+  <div id="newToken" hidden>
+    <span class="hint">Your new token. It won't be shown again, so copy it now.</span>
+    <div>
+      <input id="newTokenValue" type="password" readonly autocomplete="off" aria-label="New token">
+      <button type="button" id="copyToken">Copy</button>
+    </div>
+    <p id="copyStatus" role="status"></p>
+  </div>
+  <div id="tokenList"></div>
 </section>
 <section id="logsSection">
   <h2>What happened</h2>
@@ -335,6 +365,121 @@ export const dashboardPage = `${head("Dashboard")}<div id="top">
     form.hidden = false;
   }
 
+  const tokenForm = document.getElementById("tokenForm");
+  const tokenName = document.getElementById("tokenName");
+  const makeToken = document.getElementById("makeToken");
+  const tokenError = document.getElementById("tokenError");
+  const newToken = document.getElementById("newToken");
+  const newTokenValue = document.getElementById("newTokenValue");
+  const copyStatus = document.getElementById("copyStatus");
+  const tokenList = document.getElementById("tokenList");
+
+  // Describes one token in plain words: when it was made, last used and ends.
+  function tokenLine(token) {
+    const made = "Made " + new Date(token.createdAt).toLocaleString();
+    const used = "last used " + (token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleString() : "never");
+    if (token.status === "revoked") return made + ", " + used + ". Revoked.";
+    if (token.status === "expired") return made + ", " + used + ". Expired.";
+    return made + ", " + used + ", ends " + new Date(token.expiresAt).toLocaleString() + ".";
+  }
+
+  async function loadTokens() {
+    const response = await fetch("/api/admin/tokens").catch(() => null);
+    if (response?.status === 401) return loggedOut();
+    if (!response?.ok) {
+      tokenError.textContent = "Couldn't load the tokens. Reload the page to try again.";
+      return;
+    }
+    const { tokens } = await response.json();
+    if (tokens.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "hint";
+      empty.textContent = "No tokens yet.";
+      tokenList.replaceChildren(empty);
+      return;
+    }
+    tokenList.replaceChildren(...tokens.map((token) => {
+      const row = document.createElement("div");
+      row.className = "token";
+      const text = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = token.name;
+      const line = document.createElement("span");
+      line.className = "hint";
+      line.textContent = tokenLine(token);
+      text.append(name, line);
+      row.append(text);
+      if (token.status === "active") {
+        const revoke = document.createElement("button");
+        revoke.type = "button";
+        revoke.textContent = "Revoke";
+        revoke.addEventListener("click", () => revokeToken(token.id, revoke));
+        row.append(revoke);
+      }
+      return row;
+    }));
+  }
+
+  async function revokeToken(id, button) {
+    button.disabled = true;
+    tokenError.textContent = "";
+    const response = await fetch("/api/admin/tokens/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => null);
+    button.disabled = false;
+    if (response?.status === 401) return loggedOut();
+    if (response?.status === 404) {
+      const body = await response.json().catch(() => ({}));
+      tokenError.textContent = body.error ?? "That token wasn't found.";
+    } else if (!response?.ok) {
+      tokenError.textContent = "Couldn't revoke the token. Please try again.";
+      return;
+    }
+    loadTokens();
+    loadLogs();
+  }
+
+  tokenForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    tokenError.textContent = "";
+    makeToken.disabled = true;
+    const response = await fetch("/api/admin/tokens", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: tokenName.value.trim() }),
+    }).catch(() => null);
+    makeToken.disabled = false;
+    if (response?.status === 401) return loggedOut();
+    if (response?.status === 400) {
+      const body = await response.json().catch(() => ({}));
+      tokenError.textContent = body.error ?? "That name wasn't accepted.";
+      return;
+    }
+    if (!response?.ok) {
+      tokenError.textContent = "Couldn't make a token. Please try again.";
+      return;
+    }
+    const made = await response.json();
+    newTokenValue.value = made.token;
+    copyStatus.textContent = "";
+    newToken.hidden = false;
+    tokenName.value = "";
+    loadTokens();
+    loadLogs();
+  });
+
+  document.getElementById("copyToken").addEventListener("click", async () => {
+    if (!navigator.clipboard) {
+      copyStatus.textContent = "Copying needs https. Open the dashboard through its https address and make a new token.";
+      return;
+    }
+    const copied = await navigator.clipboard.writeText(newTokenValue.value).then(() => true, () => false);
+    copyStatus.textContent = copied ? "Copied." : "Couldn't copy. Please try again.";
+  });
+
+  loadTokens();
   load();
 </script>
 </html>`;
